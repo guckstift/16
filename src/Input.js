@@ -14,7 +14,7 @@ export class Input extends Emitter
 		};
 		
 		document.onpointerlockchange = e => {
-			if(document.pointerLockElement === target) {
+			if(document.pointerLockElement === target.elm) {
 				this.panning = true;
 			}
 			else {
@@ -58,16 +58,16 @@ export class Input extends Emitter
 			}
 		};
 		
-		target.onmousedown = e => {
+		target.elm.onmousedown = e => {
 			if(this.panning) {
 				this.trigger("click");
 			}
 			else {
-				target.requestPointerLock();
+				target.elm.requestPointerLock();
 			}
 		};
 
-		target.onmousemove = e => {
+		target.elm.onmousemove = e => {
 			if(this.panning) {
 				this.trigger("move", e);
 			}

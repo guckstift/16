@@ -1,7 +1,11 @@
-export class Dom
+import {Emitter} from "./Emitter.js";
+
+export class Dom extends Emitter
 {
 	constructor(elm)
 	{
+		super();
+		
 		this.elm = elm;
 	}
 	

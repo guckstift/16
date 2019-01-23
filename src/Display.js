@@ -43,10 +43,7 @@ export class Display extends Dom
 	
 	frame()
 	{
-		if(this.onRender) {
-			this.onRender();
-		}
-		
+		this.trigger("render");
 		requestAnimationFrame(this.frame);
 	}
 	
