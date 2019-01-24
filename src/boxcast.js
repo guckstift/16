@@ -89,7 +89,7 @@ export function boxcast(boxmin, boxmax, vec, getvox)
 						voxpos[1] = y;
 						voxpos[2] = z;
 						
-						if(getvox(voxpos)) {
+						if(getvox(...voxpos)) {
 							return {
 								axis: axis,
 								step: step[axis],

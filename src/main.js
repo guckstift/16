@@ -11,7 +11,7 @@ window.display    = new Display();
 window.world      = new World(display);
 window.input      = new Input(display);
 window.camera     = new Camera();
-window.body       = new Body();
+window.body       = new Body(world);
 window.controller = new Controller(body, input);
 
 display.resizeToPage();

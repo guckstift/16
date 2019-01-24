@@ -1,12 +1,16 @@
 import {Chunk} from "./Chunk.js";
 import {Generator} from "./Generator.js";
-import {WORLD_CHUNKS_WIDTH, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock} from "./worldmetrics.js";
+import {boxcast} from "./boxcast.js";
+import {isSolidBlock} from "./blocks.js";
+import {WORLD_CHUNKS_WIDTH, localChunkIndex, blockToChunk, localBlock} from "./worldmetrics.js";
 import * as vector from "./vector.js";
 
 export class World
 {
 	constructor(display)
 	{
+		this.solidBlock = this.solidBlock.bind(this);
+		
 		this.generator = new Generator();
 		this.sun       = vector.create(0, -1, 0);
 		this.chunks    = [];
@@ -37,11 +41,20 @@ export class World
 			blockToChunk(z),
 		);
 		
-		return chunk.getBlock(
-			localBlock(x),
-			localBlock(y),
-			localBlock(z),
-		);
+		if(chunk) {
+			return chunk.getBlock(
+				localBlock(x),
+				localBlock(y),
+				localBlock(z),
+			);
+		}
+		
+		return 0;
+	}
+
+	solidBlock(x, y, z)
+	{
+		return isSolidBlock(this.getBlock(x, y, z));
 	}
 	
 	setBlock(x, y, z, v)
@@ -52,12 +65,19 @@ export class World
 			blockToChunk(z),
 		);
 		
-		return chunk.setBlock(
-			localBlock(x),
-			localBlock(y),
-			localBlock(z),
-			v,
-		);
+		if(chunk) {
+			chunk.setBlock(
+				localBlock(x),
+				localBlock(y),
+				localBlock(z),
+				v,
+			);
+		}
+	}
+
+	boxcast(boxmin, boxmax, vec)
+	{
+		return boxcast(boxmin, boxmax, vec, this.solidBlock);
 	}
 	
 	update()

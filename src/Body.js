@@ -5,8 +5,14 @@ let deltavel = vector.create();
 
 export class Body
 {
-	constructor()
-	{
+	constructor(
+		world,
+		boxmin = vector.create(-0.25, -0.25, -0.25),
+		boxmax = vector.create( 0.25,  0.25,  0.25),
+	) {
+		this.world  = world;
+		this.boxmin = boxmin;
+		this.boxmax = boxmax;
 		this.pos    = vector.create();
 		this.vel    = vector.create();
 		this.acc    = vector.create();
@@ -26,6 +32,9 @@ export class Body
 		this.backward     = vector.create();
 		this.rightward    = vector.create();
 		this.leftward     = vector.create();
+		
+		this.globoxmin = vector.create();
+		this.globoxmax = vector.create();
 	}
 	
 	setXangle(xangle)
@@ -74,9 +83,29 @@ export class Body
 	
 	move(vel, delta)
 	{
-		vector.scale(vel, delta, this.deltavel);
+		vector.scale(vel, delta, deltavel);
 		
-		vector.addScaled(this.pos, vel, delta, this.pos);
+		this.updateBox();
+		
+		let hit = this.world.boxcast(this.globoxmin, this.globoxmax, deltavel);
+		
+		for(let i = 0; i < 3 && hit; i ++) {
+			if(hit.step > 0) {
+				this.pos[hit.axis] = hit.pos - this.boxmax[hit.axis];
+			}
+			else {
+				this.pos[hit.axis] = hit.pos - this.boxmin[hit.axis];
+			}
+			
+			deltavel[hit.axis] = 0;
+			vel[hit.axis]           = 0;
+			
+			this.updateBox();
+			
+			hit = this.world.boxcast(this.globoxmin, this.globoxmax, deltavel);
+		}
+		
+		vector.add(this.pos, deltavel, this.pos);
 	}
 	
 	moveLookForward(delta)
@@ -190,5 +219,11 @@ export class Body
 	turnYangle(yangle)
 	{
 		this.setYangle(this.yangle + yangle);
+	}
+	
+	updateBox()
+	{
+		vector.add(this.pos, this.boxmin, this.globoxmin);
+		vector.add(this.pos, this.boxmax, this.globoxmax);
 	}
 }
