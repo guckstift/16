@@ -8,7 +8,8 @@ const blocks = [
 		name: "stone",
 		solid: true,
 		visible: true,
-		tiles: [0, 0, 0, 0, 0, 0],
+		//tiles: [0, 0, 0, 0, 0, 0],
+		tiles: [4, 4, 4, 4, 4, 4],
 	},
 	{
 		name: "soil",

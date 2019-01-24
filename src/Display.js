@@ -43,7 +43,7 @@ export class Display extends Dom
 	
 	frame()
 	{
-		this.trigger("render");
+		this.trigger("frame");
 		requestAnimationFrame(this.frame);
 	}
 	
@@ -52,6 +52,14 @@ export class Display extends Dom
 		this.canvas.width = w;
 		this.canvas.height = h;
 		this.gl.viewport(0, 0, w, h);
+	}
+	
+	resizeToPage()
+	{
+		this.resize(window.innerWidth, window.innerHeight);
+		this.canvas.style.position = "absolute";
+		this.canvas.style.left = "0";
+		this.canvas.style.top = "0";
 	}
 	
 	getTexture(url)

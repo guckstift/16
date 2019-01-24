@@ -9,26 +9,41 @@ export class NoiseLayer
 		let width   = WORLD_WIDTH >> lod;
 		let samples = new Float64Array(width ** dims);
 		
-		for(let z=0; z < (dims >= 3 ? width : 0); z++) {
-			for(let y=0; y < (dims >= 2 ? width : 0); y++) {
-				for(let x=0; x < (dims >= 1 ? width : 0); x++) {
+		let sizes = [
+			dims >= 1 ? width : 1,
+			dims >= 2 ? width : 1,
+			dims >= 3 ? width : 1,
+		];
+		
+		for(let z=0; z < sizes[2]; z++) {
+			for(let y=0; y < sizes[1]; y++) {
+				for(let x=0; x < sizes[0]; x++) {
 					samples[(z * width + y) * width + x] = noise3d(x, y, z, seed) * amp;
 				}
 			}
 		}
 		
 		this.width    = width;
+		this.samples  = samples;
+		this.sizes    = sizes;
 		this.scale    = 1 << lod;
 		this.invscale = 1 / this.scale;
-		this.samples  = samples;
 	}
 	
 	discreteSample(x, y, z)
 	{
+		if(
+			x < 0 || x >= this.sizes[0] ||
+			y < 0 || y >= this.sizes[1] ||
+			z < 0 || z >= this.sizes[2]
+		) {
+			return 0;
+		}
+		
 		return this.samples[(z * this.width + y) * this.width + x];
 	}
 	
-	sample(x, y, z)
+	sample(x = 0, y = 0, z = 0)
 	{
 		x *= this.invscale;
 		y *= this.invscale;

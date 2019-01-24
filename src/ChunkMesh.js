@@ -1,4 +1,4 @@
-import {isSolidBlock, getBlockTile} from "./blocks.js";
+import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
 import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
 import * as vector from "./vector.js";
 

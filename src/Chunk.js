@@ -19,9 +19,14 @@ export class Chunk
 		return this.data.getBlock(x, y, z);
 	}
 	
-	setBlock(x, y, z, b)
+	setBlock(x, y, z, v)
 	{
 		return this.data.setBlock(x, y, z, v);
+	}
+	
+	packData(buf)
+	{
+		this.data.pack(buf);
 	}
 	
 	update()

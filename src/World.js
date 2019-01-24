@@ -1,6 +1,6 @@
 import {Chunk} from "./Chunk.js";
 import {Generator} from "./Generator.js";
-import {WORLD_CHUNKS_WIDTH, CHUNK_WIDTH, localChunkIndex} from "./worldmetrics.js";
+import {WORLD_CHUNKS_WIDTH, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock} from "./worldmetrics.js";
 import * as vector from "./vector.js";
 
 export class World
@@ -14,22 +14,11 @@ export class World
 		for(let z=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
 				for(let x=0; x < WORLD_CHUNKS_WIDTH; x++) {
-					this.chunks.push(new Chunk(display, x, y, z));
+					let chunk = new Chunk(display, x, y, z);
+					let buf   = this.generator.genChunk(x, y, z);
 					
-					for(let bz=0; bz < CHUNK_WIDTH; bz++) {
-						for(let by=0; by < CHUNK_WIDTH; by++) {
-							for(let bx=0; bx < CHUNK_WIDTH; bx++) {
-								let gx = x * CHUNK_WIDTH + bx;
-								let gy = y * CHUNK_WIDTH + by;
-								let gz = z * CHUNK_WIDTH + bz;
-								let h  = this.generator.sample(gx, gy, gz);
-								
-								if(gy < h) {
-									this.setBlock(gx, gy, gz, 1);
-								}
-							}
-						}
-					}
+					chunk.packData(buf);
+					this.chunks.push(chunk);
 				}
 			}
 		}
@@ -52,6 +41,22 @@ export class World
 			localBlock(x),
 			localBlock(y),
 			localBlock(z),
+		);
+	}
+	
+	setBlock(x, y, z, v)
+	{
+		let chunk = this.getChunk(
+			blockToChunk(x),
+			blockToChunk(y),
+			blockToChunk(z),
+		);
+		
+		return chunk.setBlock(
+			localBlock(x),
+			localBlock(y),
+			localBlock(z),
+			v,
 		);
 	}
 	
