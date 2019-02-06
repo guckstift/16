@@ -1,4 +1,4 @@
-import * as vector from "./vector.js";
+import * as vector from "../gluck/vector.js";
 
 let sqrt  = Math.sqrt;
 let floor = Math.floor;

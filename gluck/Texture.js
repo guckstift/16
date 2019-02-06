@@ -2,7 +2,7 @@ export class Texture
 {
 	constructor(display, url)
 	{
-		let gl = display.gl;
+		let gl  = display.gl;
 		let img = document.createElement("img");
 
 		img.src = url;

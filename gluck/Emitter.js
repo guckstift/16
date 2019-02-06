@@ -17,6 +17,8 @@ export class Emitter
 	on(event, cb)
 	{
 		this.listeners(event).push(cb);
+		
+		return this;
 	}
 	
 	off(event, cb)
@@ -27,10 +29,14 @@ export class Emitter
 		if(index > -1) {
 			listeners.splice(index, 1);
 		}
+		
+		return this;
 	}
 	
 	trigger(event, ...data)
 	{
 		this.listeners(event).forEach(cb => cb(...data));
+		
+		return this;
 	}
 }

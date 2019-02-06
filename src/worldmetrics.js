@@ -1,10 +1,10 @@
-import {mod} from "./math.js";
+import {mod} from "../gluck/math.js";
 
 export const CHUNK_BITS  = 4;
 export const CHUNK_WIDTH = 1 << CHUNK_BITS;
 export const CHUNK_SIZE  = CHUNK_WIDTH ** 3;
 
-export const WORLD_BITS         = 0;
+export const WORLD_BITS         = 2;
 export const WORLD_CHUNKS_WIDTH = 1 << WORLD_BITS;
 export const WORLD_CHUNKS_SIZE  = WORLD_CHUNKS_WIDTH ** 3;
 

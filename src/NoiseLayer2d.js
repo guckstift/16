@@ -1,5 +1,5 @@
-import {noise2d} from "./noise.js";
-import {smoothMix2d} from "./math.js";
+import {noise2d} from "../gluck/noise.js";
+import {smoothMix2d} from "../gluck/math.js";
 import {WORLD_WIDTH} from "./worldmetrics.js";
 
 export class NoiseLayer2d
@@ -23,23 +23,20 @@ export class NoiseLayer2d
 	
 	discreteSample(x, y)
 	{
-		if(
-			x < 0 || x >= this.width ||
-			y < 0 || y >= this.width
-		) {
+		if(x < 0 || x >= this.width || y < 0 || y >= this.width) {
 			return 0;
 		}
 		
 		return this.samples[y * this.width + x];
 	}
 	
-	sample(x = 0, y = 0)
+	sample(x, y)
 	{
 		x *= this.invscale;
 		y *= this.invscale;
 		
-		let ix  = Math.floor(x);
-		let iy  = Math.floor(y);
+		let ix = Math.floor(x);
+		let iy = Math.floor(y);
 		let aa = this.discreteSample(ix,     iy);
 		let ba = this.discreteSample(ix + 1, iy);
 		let ab = this.discreteSample(ix,     iy + 1);

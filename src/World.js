@@ -2,8 +2,9 @@ import {Chunk} from "./Chunk.js";
 import {Generator} from "./Generator.js";
 import {boxcast} from "./boxcast.js";
 import {isSolidBlock} from "./blocks.js";
-import {WORLD_CHUNKS_WIDTH, localChunkIndex, blockToChunk, localBlock} from "./worldmetrics.js";
-import * as vector from "./vector.js";
+import {WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, localChunkIndex, blockToChunk, localBlock}
+	from "./worldmetrics.js";
+import * as vector from "../gluck/vector.js";
 
 export class World
 {
@@ -13,7 +14,7 @@ export class World
 		
 		this.generator = new Generator();
 		this.sun       = vector.create(0, -1, 0);
-		this.chunks    = [];
+		this.chunks    = Array.from(Array(WORLD_CHUNKS_SIZE));
 		
 		for(let z=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
@@ -22,7 +23,7 @@ export class World
 					let buf   = this.generator.genChunk(x, y, z);
 					
 					chunk.packData(buf);
-					this.chunks.push(chunk);
+					this.chunks[localChunkIndex(x, y, z)] = chunk;
 				}
 			}
 		}
@@ -82,11 +83,19 @@ export class World
 	
 	update()
 	{
-		this.chunks.forEach(chunk => chunk.update());
+		this.chunks.forEach(chunk => {
+			if(chunk) {
+				chunk.update();
+			}
+		});
 	}
 	
 	draw(camera)
 	{
-		this.chunks.forEach(chunk => chunk.draw(camera, this.sun));
+		this.chunks.forEach(chunk => {
+			if(chunk) {
+				chunk.draw(camera, this.sun);
+			}
+		});
 	}
 }

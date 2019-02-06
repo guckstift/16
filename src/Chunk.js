@@ -1,13 +1,15 @@
 import {ChunkData} from "./ChunkData.js";
 import {ChunkMesh} from "./ChunkMesh.js";
 import {ChunkDrawable} from "./ChunkDrawable.js";
-import * as vector from "./vector.js";
+import {CHUNK_WIDTH} from "./worldmetrics.js";
+import * as vector from "../gluck/vector.js";
 
 export class Chunk
 {
 	constructor(display, x, y, z)
 	{
 		this.pos      = vector.create(x, y, z);
+		this.chunkpos = vector.scale(this.pos, CHUNK_WIDTH);
 		this.data     = new ChunkData();
 		this.mesh     = new ChunkMesh();
 		this.drawable = new ChunkDrawable(display);
@@ -40,6 +42,6 @@ export class Chunk
 	
 	draw(camera, sun)
 	{
-		this.drawable.draw(this.pos, camera, sun);
+		this.drawable.draw(this.chunkpos, camera, sun);
 	}
 }

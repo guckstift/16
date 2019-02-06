@@ -1,11 +1,11 @@
-import {VERT_SIZE} from "./ChunkMesh.js";
+import {vertLayout} from "./ChunkMesh.js";
 
 export class ChunkDrawable
 {
 	constructor(display)
 	{
 		this.display = display;
-		this.buf     = display.createBuffer(true, true);
+		this.buf     = display.Buffer("dynamic", vertLayout);
 		this.shader  = display.getShader("chunk", vertSrc, fragSrc);
 		this.atlas   = display.getTexture("gfx/atlas.png");
 		this.vertnum = 0;
@@ -13,7 +13,7 @@ export class ChunkDrawable
 	
 	update(mesh)
 	{
-		this.buf.setData(mesh.getData());
+		this.buf.update(mesh.getData());
 		this.vertnum = mesh.getVertNum();
 	}
 	
@@ -25,17 +25,11 @@ export class ChunkDrawable
 		
 		if(this.vertnum) {
 			shader.use();
-			
-			shader.uniformVec("sun",    sun);
-			shader.uniformMat("matrix", camera.getMatrix(pos));
-			shader.uniformTex("atlas",  this.atlas, 0);
-			
-			shader.attrib("vert",      buf, 3, VERT_SIZE, 0);
-			shader.attrib("occlusion", buf, 1, VERT_SIZE, 3);
-			shader.attrib("normal",    buf, 3, VERT_SIZE, 4);
-			shader.attrib("tile",      buf, 1, VERT_SIZE, 7);
-			
-			this.display.draw(this.vertnum);
+			shader.uniform("sun",    sun);
+			shader.uniform("matrix", camera.getMatrix(pos));
+			shader.texture("atlas",  this.atlas);
+			shader.buffer(buf);
+			shader.triangles();
 		}
 	}
 }
@@ -47,7 +41,7 @@ const vertSrc = `
 	attribute vec3 vert;
 	attribute vec3 normal;
 	attribute float tile;
-	attribute float occlusion;
+	attribute float occl;
 	
 	varying vec2 uvOffset;
 	varying vec2 planePos;
@@ -64,7 +58,7 @@ const vertSrc = `
 		planePos = vec2(0.0);
 		
 		coef = (
-			0.5 * (1.0 - occlusion * 0.25) +
+			0.5 * (1.0 - occl * 0.25) +
 			0.5 * max(0.0, dot(correctNormal, -sun))
 		);
 		
@@ -90,8 +84,6 @@ const vertSrc = `
 `;
 
 const fragSrc = `
-	precision highp float;
-	
 	uniform sampler2D atlas;
 	
 	varying vec2 uvOffset;

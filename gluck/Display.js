@@ -25,6 +25,8 @@ export class Display extends Dom
 		this.gl          = gl;
 		this.frame       = this.frame.bind(this);
 		this.defaultTex  = gl.createTexture();
+		this.last        = 0;
+		this.delta       = 0;
 
 		gl.bindTexture(gl.TEXTURE_2D, this.defaultTex);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -41,15 +43,18 @@ export class Display extends Dom
 		return this.canvas.width / this.canvas.height;
 	}
 	
-	frame()
+	frame(now)
 	{
-		this.trigger("frame");
+		this.last  = this.last || now;
+		this.delta = (now - this.last) / 1000;
+		this.last  = now;
+		this.trigger("frame", {delta: this.delta});
 		requestAnimationFrame(this.frame);
 	}
 	
 	resize(w, h)
 	{
-		this.canvas.width = w;
+		this.canvas.width  = w;
 		this.canvas.height = h;
 		this.gl.viewport(0, 0, w, h);
 	}
@@ -57,15 +62,12 @@ export class Display extends Dom
 	resizeToPage()
 	{
 		this.resize(window.innerWidth, window.innerHeight);
-		this.canvas.style.position = "absolute";
-		this.canvas.style.left = "0";
-		this.canvas.style.top = "0";
 	}
 	
 	getTexture(url)
 	{
 		if(!this.texcache[url]) {
-			this.texcache[url] = this.createTexture(url);
+			this.texcache[url] = this.Texture(url);
 		}
 		
 		return this.texcache[url];
@@ -74,31 +76,24 @@ export class Display extends Dom
 	getShader(id, vertSrc, fragSrc)
 	{
 		if(!this.shadercache[id]) {
-			this.shadercache[id] = this.createShader(vertSrc, fragSrc);
+			this.shadercache[id] = this.Shader(vertSrc, fragSrc);
 		}
 		
 		return this.shadercache[id];
 	}
 	
-	createShader(vertSrc, fragSrc)
+	Shader(vertSrc, fragSrc)
 	{
 		return new Shader(this, vertSrc, fragSrc);
 	}
 	
-	createBuffer(dynamic, byte)
+	Buffer(usage, layout, data)
 	{
-		return new Buffer(this, dynamic, byte);
+		return new Buffer(this, usage, layout, data);
 	}
 	
-	createTexture(url)
+	Texture(url)
 	{
 		return new Texture(this, url);
-	}
-	
-	draw(vertnum)
-	{
-		let gl = this.gl;
-		
-		gl.drawArrays(gl.TRIANGLES, 0, vertnum);
 	}
 }

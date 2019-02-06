@@ -1,6 +1,7 @@
+import {VertexLayout} from "../gluck/VertexLayout.js";
+import * as vector from "../gluck/vector.js";
 import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
 import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
-import * as vector from "./vector.js";
 
 export class ChunkMesh
 {
@@ -42,6 +43,11 @@ export class ChunkMesh
 
 export let VERT_SIZE = 3 + 1 + 3 + 1;
 export let QUAD_SIZE = 2 * 3 * VERT_SIZE;
+
+export let vertLayout = new VertexLayout(
+	"ubyte",
+	["vert", 3], ["occl", 1], ["normal", 3], ["tile", 1]
+);
 
 let singleChunkDataMatrix = [
 	null, null, null,
@@ -174,6 +180,14 @@ function computeFaces()
 					computeFace(x, y, z,  0,-1, 0, block, 3, bottomFaces);
 					computeFace(x, y, z,  0, 0,+1, block, 4, backFaces);
 					computeFace(x, y, z,  0, 0,-1, block, 5, frontFaces);
+				}
+				else {
+					rightFaces[i]  = 0;
+					leftFaces[i]   = 0;
+					topFaces[i]    = 0;
+					bottomFaces[i] = 0;
+					backFaces[i]   = 0;
+					frontFaces[i]  = 0;
 				}
 			}
 		}
