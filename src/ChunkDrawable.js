@@ -63,22 +63,22 @@ const vertSrc = `
 		);
 		
 		if(correctNormal.x > 0.0) {
-			planePos = vec2( 0.0 - correctVert.z, 16.0 - correctVert.y);
+			planePos = vec2( 0.0 + correctVert.z, 16.0 - correctVert.y);
 		}
 		else if(correctNormal.x < 0.0) {
 			planePos = vec2(16.0 - correctVert.z, 16.0 - correctVert.y);
 		}
 		else if(correctNormal.y > 0.0) {
-			planePos = vec2( 0.0 - correctVert.x, 16.0 - correctVert.z);
+			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.z);
 		}
 		else if(correctNormal.y < 0.0) {
-			planePos = vec2( 0.0 - correctVert.x,  0.0 - correctVert.z);
+			planePos = vec2( 0.0 + correctVert.x,  0.0 + correctVert.z);
 		}
 		else if(correctNormal.z > 0.0) {
 			planePos = vec2(16.0 - correctVert.x, 16.0 - correctVert.y);
 		}
 		else if(correctNormal.z < 0.0) {
-			planePos = vec2( 0.0 - correctVert.x, 16.0 - correctVert.y);
+			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
 		}
 	}
 `;
