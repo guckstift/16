@@ -5,6 +5,7 @@ import {isSolidBlock} from "./blocks.js";
 import {WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, localChunkIndex, blockToChunk, localBlock}
 	from "./worldmetrics.js";
 import * as vector from "../gluck/vector.js";
+import {radians} from "../gluck/math.js";
 
 export class World
 {
@@ -15,6 +16,9 @@ export class World
 		this.generator = new Generator();
 		this.sun       = vector.create(0, -1, 0);
 		this.chunks    = Array.from(Array(WORLD_CHUNKS_SIZE));
+		
+		vector.rotateX(this.sun, radians(-30), this.sun);
+		vector.rotateY(this.sun, radians(-30), this.sun);
 		
 		for(let z=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
@@ -110,6 +114,8 @@ export class World
 				chunk.update(this);
 			}
 		});
+		
+		vector.rotateZ(this.sun, 1/256, this.sun);
 	}
 	
 	draw(camera)

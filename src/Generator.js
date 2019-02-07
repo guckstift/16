@@ -7,8 +7,9 @@ export class Generator
 	constructor()
 	{
 		this.layers = [
-			new NoiseLayer2d(1, 1, 12345),
-			new NoiseLayer2d(4, 16, 12345),
+			new NoiseLayer2d(1, 1,  12345),
+			new NoiseLayer2d(4, 16, 23451),
+			new NoiseLayer2d(6, 64, 34512),
 			//new NoiseLayer2d(2, 2, 12345),
 		];
 		

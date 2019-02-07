@@ -26,7 +26,10 @@ export class ChunkDrawable
 		if(this.vertnum) {
 			shader.use();
 			shader.uniform("sun",    sun);
-			shader.uniform("matrix", camera.getMatrix(pos));
+			shader.uniform("campos", camera.pos);
+			//shader.uniform("matrix", camera.getMatrix(pos));
+			shader.uniform("proj", camera.getProjection());
+			shader.uniform("viewModel", camera.getViewModel(pos));
 			shader.texture("atlas",  this.atlas);
 			shader.buffer(buf);
 			shader.triangles();
@@ -36,13 +39,16 @@ export class ChunkDrawable
 
 const vertSrc = `
 	uniform vec3 sun;
-	uniform mat4 matrix;
+	uniform mat4 proj;
+	uniform mat4 viewModel;
+	uniform vec3 campos;
 	
 	attribute vec3 vert;
 	attribute vec3 normal;
 	attribute float tile;
 	attribute float occl;
 	
+	varying vec3 vTranslatedVert;
 	varying vec2 uvOffset;
 	varying vec2 planePos;
 	varying float coef;
@@ -51,11 +57,14 @@ const vertSrc = `
 	{
 		vec3 correctVert = vert;
 		vec3 correctNormal = normal - vec3(128.0);
+		vec4 translatedVert = viewModel * vec4(correctVert, 1.0);
 		
-		gl_Position = matrix * vec4(correctVert, 1.0);
+		gl_Position = proj * translatedVert;
 		
 		uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
 		planePos = vec2(0.0);
+		
+		vTranslatedVert = translatedVert.xyz;
 		
 		coef = (
 			0.5 * (1.0 - occl * 0.25) +
@@ -86,15 +95,20 @@ const vertSrc = `
 const fragSrc = `
 	uniform sampler2D atlas;
 	
+	varying vec3 vTranslatedVert;
 	varying vec2 uvOffset;
 	varying vec2 planePos;
 	varying float coef;
 	
 	void main()
 	{
+		float fog = min(1.0, 16.0 / length(vTranslatedVert));
+		
 		vec2 uv = (uvOffset + fract(planePos)) / 16.0;
 		
 		gl_FragColor      = texture2D(atlas, uv);
 		gl_FragColor.rgb *= coef;
+		gl_FragColor.rgb *= fog;
+		gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0);
 	}
 `;

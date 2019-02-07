@@ -1,8 +1,0 @@
-# TODOs
-
-* Implement a skybox
-* Distance fog
-
-# Done
-
-* Use chunk vicinity to calculate mesh

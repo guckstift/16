@@ -22,6 +22,9 @@ export class Perspective
 		this.proj      = matrix.identity();
 		this.viewmodel = matrix.identity();
 		this.rota      = matrix.identity();
+		this.view      = matrix.identity();
+		this.viewProj  = matrix.identity();
+		this.model     = matrix.identity();
 	}
 	
 	setFovy(fovy)
@@ -153,6 +156,39 @@ export class Perspective
 		}
 		
 		return this.viewmodel;
+	}
+	
+	getView()
+	{
+		matrix.translate(this.getRota(), -this.pos[0], -this.pos[1], -this.pos[2], this.view);
+		
+		return this.view;
+	}
+	
+	getProjView()
+	{
+		matrix.multiply(this.getProjection(), this.getView(), this.viewProj);
+		
+		return this.viewProj;
+	}
+	
+	getModel(pos = nullVector, ax = 0, ay = 0, az = 0)
+	{
+		matrix.translation(pos[0], pos[1], pos[2], this.model);
+		
+		if(ax) {
+			matrix.rotateX(this.model, ax, this.model);
+		}
+		
+		if(ay) {
+			matrix.rotateY(this.model, ay, this.model);
+		}
+		
+		if(az) {
+			matrix.rotateZ(this.model, az, this.model);
+		}
+		
+		return this.model;
 	}
 	
 	getRota()
