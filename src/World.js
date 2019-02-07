@@ -31,7 +31,29 @@ export class World
 	
 	getChunk(x, y, z)
 	{
-		return this.chunks[localChunkIndex(x, y, z)]
+		if(
+			x >= 0 && y >= 0 && z >= 0
+			&& x < WORLD_CHUNKS_WIDTH && y < WORLD_CHUNKS_WIDTH && z < WORLD_CHUNKS_WIDTH
+		) {
+			return this.chunks[localChunkIndex(x, y, z)]
+		}
+		
+		return null;
+	}
+	
+	getChunkVicinity(x, y, z)
+	{
+		for(let iz = z-1, i=0; iz <= z+1; iz++) {
+			for(let iy = y-1; iy <= y+1; iy++) {
+				for(let ix = x-1; ix <= x+1; ix++, i++) {
+					let chunk = this.getChunk(ix, iy, iz);
+					
+					chunkVicinity[i] = chunk ? chunk.data : null;
+				}
+			}
+		}
+		
+		return chunkVicinity;
 	}
 	
 	getBlock(x, y, z)
@@ -85,7 +107,7 @@ export class World
 	{
 		this.chunks.forEach(chunk => {
 			if(chunk) {
-				chunk.update();
+				chunk.update(this);
 			}
 		});
 	}
@@ -99,3 +121,17 @@ export class World
 		});
 	}
 }
+
+let chunkVicinity = [
+	null, null, null,
+	null, null, null,
+	null, null, null,
+
+	null, null, null,
+	null, null, null,
+	null, null, null,
+
+	null, null, null,
+	null, null, null,
+	null, null, null,
+];

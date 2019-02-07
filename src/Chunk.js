@@ -31,10 +31,10 @@ export class Chunk
 		this.data.pack(buf);
 	}
 	
-	update()
+	update(world)
 	{
 		if(this.dirty) {
-			this.mesh.update(this.data);
+			this.mesh.update(world.getChunkVicinity(...this.pos));
 			this.drawable.update(this.mesh);
 			this.dirty = false;
 		}
