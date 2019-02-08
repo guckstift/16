@@ -23,7 +23,7 @@ export class NoiseLayer2d
 	
 	discreteSample(x, y)
 	{
-		if(x < 0 || x >= this.width || y < 0 || y >= this.width) {
+		if(x <= 0 || x >= this.width || y <= 0 || y >= this.width) {
 			return 0;
 		}
 		
