@@ -93,7 +93,7 @@ export class Shader
 	
 	uniform(name, value)
 	{
-		if(value.length === 1) {
+		if(typeof value === "number") {
 			this.gl.uniform1f(this.getVar(name), value);
 		}
 		else if(value.length === 2) {

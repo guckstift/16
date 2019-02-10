@@ -9,7 +9,7 @@ export class Skybox
 		this.buffer  = display.Buffer("static", layout, box);
 	}
 	
-	draw(camera)
+	draw(camera, sun)
 	{
 		let gl     = this.display.gl;
 		let shader = this.shader;
@@ -18,6 +18,7 @@ export class Skybox
 		
 		shader.use();
 		shader.uniform("mat", camera.getMatrix(camera.pos));
+		shader.uniform("sun", sun);
 		shader.buffer(this.buffer);
 		shader.triangles();
 		
@@ -88,21 +89,26 @@ let vertSrc = `
 
 let fragSrc = `
 	uniform sampler2D tex;
+	uniform vec3 sun;
 	
 	varying vec3 vPos;
 	
 	void main()
 	{
-		vec3 normPos = normalize(vPos);
-		vec3 normHor = normalize(vec3(vPos.x, 0.0, vPos.z));
-		float coef   = 1.0 - normPos.y;
+		vec3 norm  = normalize(vPos);
+		float coef = 1.0 - normalize(norm).y;
 		
-		coef *= coef;
-		coef *= 1.25;
+		coef *= coef * 2.0;
 		
 		gl_FragColor = (
 			vec4(0.5, 0.75, 1.0, 1.0) * coef +
 			vec4(0.125, 0.25, 0.5, 1.0) * (1.0 - coef)
 		);
+		
+		float dist = distance(norm, -sun);
+		
+		if(dist < 1.0) {
+			gl_FragColor.rgb += vec3(1.0, 0.75, 0.125) * 1.0 / (256.0 * dist * dist);
+		}
 	}
 `;

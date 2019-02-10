@@ -81,7 +81,7 @@ export class World
 
 	solidBlock(x, y, z)
 	{
-		return isSolidBlock(this.getBlock(x, y, z));
+		return y <= 0 || isSolidBlock(this.getBlock(x, y, z));
 	}
 	
 	setBlock(x, y, z, v)
