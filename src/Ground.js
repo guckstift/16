@@ -5,6 +5,7 @@ export class Ground
 	constructor(display)
 	{
 		this.display = display;
+		this.tex     = display.getTexture("gfx/atlas.png");
 		this.buf     = display.Buffer("static", vertLayout, verts);
 		this.shader  = display.getShader("ground", vertSrc, fragSrc);
 	}
@@ -15,6 +16,7 @@ export class Ground
 		let shader = this.shader;
 		
 		shader.use();
+		shader.texture("tex",     this.tex);
 		shader.uniform("proj",    camera.getProjection());
 		shader.uniform("view",    camera.getView());
 		shader.uniform("model",   camera.getModel([pos[0], 0, pos[2]]));

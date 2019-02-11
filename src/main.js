@@ -7,7 +7,7 @@ import {World} from "./World.js";
 import {Skybox} from "./Skybox.js";
 import {Model} from "./Model.js";
 import {Ground} from "./Ground.js";
-import {treeMesh} from "../meshes/tree.js";
+import {tree1} from "../models/tree1.js";
 
 let gravity   = 20;
 let runspeed  = 4;
@@ -22,7 +22,7 @@ window.world      = new World(display);
 window.skybox     = new Skybox(display);
 window.body       = new Body(world, 1.5, [-0.25, 0, -0.25], [0.25, 1.75, 0.25]);
 window.controller = new Controller(body, input);
-window.tree       = new Model(display, treeMesh.verts);
+window.model      = new Model(display, tree1.data, tree1.indices, "gfx/tree1.png");
 window.ground     = new Ground(display);
 
 display.setTopLeftAligned();
@@ -38,11 +38,12 @@ display.on("frame", e => {
 	controller.update(runspeed, jumpspeed, e.delta);
 	body.update(e.delta);
 	camera.setFromBody(body);
+	world.update();
+	
 	skybox.draw(camera, world.sun);
 	ground.draw(camera, world.sun, camera.pos);
-	world.update();
-	tree.draw([2.5,1,2.5], camera, world.sun);
 	world.draw(camera);
+	model.draw([2.5,1,2.5], camera, world.sun);
 });
 
 input.on("resize", e => {

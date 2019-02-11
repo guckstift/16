@@ -1,8 +1,17 @@
+import {VertexLayout} from "./VertexLayout.js";
+
 export class Buffer
 {
 	constructor(display, usage, layout, data = 0)
 	{
 		let gl = display.gl;
+		
+		this.target = gl.ARRAY_BUFFER;
+		
+		if(layout === "index") {
+			layout = indexLayout;
+			this.target = gl.ELEMENT_ARRAY_BUFFER;
+		}
 		
 		this.gl        = gl;
 		this.buf       = gl.createBuffer();
@@ -77,13 +86,13 @@ export class Buffer
 			data = this.data;
 		}
 		
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+		gl.bindBuffer(this.target, this.buf);
 		
 		if(data.byteLength !== this.size) {
-			gl.bufferData(gl.ARRAY_BUFFER, data, this.glusage);
+			gl.bufferData(this.target, data, this.glusage);
 		}
 		else {
-			gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+			gl.bufferSubData(this.target, 0, data);
 		}
 		
 		this.data  = data;
@@ -91,3 +100,5 @@ export class Buffer
 		this.verts = Math.floor(this.size / this.getStride());
 	}
 }
+
+let indexLayout = new VertexLayout("ushort", ["index", 1]);

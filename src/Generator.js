@@ -13,7 +13,7 @@ export class Generator
 			//new NoiseLayer2d(2, 2, 12345),
 		];
 		
-		this.buf   = new Uint8Array(CHUNK_SIZE);
+		this.buf = new Uint8Array(CHUNK_SIZE);
 	}
 	
 	sample(x, y, z)

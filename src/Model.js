@@ -1,13 +1,15 @@
 import {VertexLayout} from "../gluck/VertexLayout.js";
 
-let layout = new VertexLayout("float", ["pos", 3], ["norm", 3], ["col", 3]);
+let layout = new VertexLayout("float", ["pos", 3], ["norm", 3], ["uv", 2]);
 
 export class Model
 {
-	constructor(display, mesh)
+	constructor(display, data, indices, texfile)
 	{
-		this.buf    = display.Buffer("static", layout, mesh);
+		this.buf    = display.Buffer("static", layout, data);
+		this.ibuf   = display.Buffer("static", "index", indices);
 		this.shader = display.getShader("model", vertSrc, fragSrc);
+		this.tex    = display.getTexture(texfile);
 	}
 	
 	draw(pos, camera, sun)
@@ -16,6 +18,7 @@ export class Model
 		let buf    = this.buf;
 		
 		shader.use();
+		shader.texture("tex",     this.tex);
 		shader.uniform("proj",    camera.getProjection());
 		shader.uniform("view",    camera.getView());
 		shader.uniform("model",   camera.getModel(pos));
@@ -23,6 +26,7 @@ export class Model
 		shader.uniform("diff",    0.5);
 		shader.uniform("fogCol",  [0.75, 0.875, 1.0]);
 		shader.uniform("fogDist", 16);
+		shader.indices(this.ibuf);
 		shader.buffer(buf);
 		shader.triangles();
 	}
@@ -37,10 +41,10 @@ const vertSrc = `
 	
 	attribute vec3 pos;
 	attribute vec3 norm;
-	attribute vec3 col;
+	attribute vec2 uv;
 	
 	varying vec4 vTransPos;
-	varying vec3 vCol;
+	varying vec2 vUv;
 	varying float vCoef;
 	
 	void main()
@@ -48,23 +52,29 @@ const vertSrc = `
 		vTransPos   = view * model * vec4(pos, 1.0);
 		gl_Position = proj * vTransPos;
 		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, -sun));
-		vCol        = col;
+		vUv         = uv;
 	}
 `;
 
 const fragSrc = `
-	varying vec4 vTransPos;
-	varying vec3 vCol;
-	varying float vCoef;
-	
+	uniform sampler2D tex;
 	uniform vec3 fogCol;
 	uniform float fogDist;
+	
+	varying vec4 vTransPos;
+	varying vec2 vUv;
+	varying float vCoef;
 	
 	void main()
 	{
 		float fog = min(1.0, fogDist / length(vTransPos.xyz));
 		
-		gl_FragColor      = vec4(vCol, 1.0);
+		gl_FragColor      = texture2D(tex, vUv);
+		
+		if(gl_FragColor.a == 0.0) {
+			discard;
+		}
+		
 		gl_FragColor.rgb *= vCoef;
 		gl_FragColor.rgb *= fog;
 		gl_FragColor.rgb += (1.0 - fog) * fogCol;

@@ -32,15 +32,21 @@ export class Shader
 		this.gl      = gl;
 		this.prog    = prog;
 		this.vars    = {};
+		this.reset();
+	}
+	
+	reset()
+	{
 		this.texunit = 0;
 		this.verts   = 2**32 - 1;
+		this.ibuf    = null;
 	}
 	
 	use()
 	{
 		this.gl.useProgram(this.prog);
-		this.texunit = 0;
-		this.verts   = 2**32 - 1;
+		this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, null);
+		this.reset();
 	}
 	
 	getVar(name)
@@ -58,6 +64,14 @@ export class Shader
 		}
 		
 		return this.vars[name];
+	}
+	
+	indices(buffer)
+	{
+		let gl = this.gl;
+		
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.getBuf());
+		this.ibuf = buffer;
 	}
 	
 	attrib(name, buffer, field)
@@ -128,6 +142,11 @@ export class Shader
 	{
 		let gl = this.gl;
 		
-		gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+		if(this.ibuf) {
+			gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+		}
+		else {
+			gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+		}
 	}
 }

@@ -115,7 +115,7 @@ export class World
 			}
 		});
 		
-		vector.rotateZ(this.sun, 1/256, this.sun);
+		vector.rotateZ(this.sun, 1/1024, this.sun);
 	}
 	
 	draw(camera)
