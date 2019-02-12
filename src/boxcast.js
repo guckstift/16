@@ -14,13 +14,14 @@ let step     = vector.create64();
 let waydelta = vector.create64();
 let waynext  = vector.create64();
 
-export function boxcast(boxmin, boxmax, vec, getvox)
+export function boxcast(boxmin, boxmax, vec, getvox, getslope)
 {
 	let len      = sqrt(vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2);
 	let way      = 0;
 	let axis     = 0;
 	let distnext = 0;
 	let trail    = 0;
+	let slope    = 0;
 	
 	if(len === 0) {
 		return;
@@ -89,11 +90,12 @@ export function boxcast(boxmin, boxmax, vec, getvox)
 						voxpos[1] = y;
 						voxpos[2] = z;
 						
-						if(getvox(...voxpos)) {
+						if(getvox(...voxpos) && getslope(...voxpos) === 0) {
 							return {
-								axis: axis,
-								step: step[axis],
-								pos:  lead[axis] + way * dir[axis],
+								axis:   axis,
+								step:   step[axis],
+								pos:    lead[axis] + way * dir[axis],
+								voxpos: voxpos,
 							};
 						}
 					}

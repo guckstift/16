@@ -27,7 +27,6 @@ export class ChunkDrawable
 			shader.use();
 			shader.uniform("sun",    sun);
 			shader.uniform("campos", camera.pos);
-			//shader.uniform("matrix", camera.getMatrix(pos));
 			shader.uniform("proj", camera.getProjection());
 			shader.uniform("viewModel", camera.getViewModel(pos));
 			shader.texture("atlas",  this.atlas);

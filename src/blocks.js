@@ -8,8 +8,7 @@ const blocks = [
 		name: "stone",
 		solid: true,
 		visible: true,
-		//tiles: [0, 0, 0, 0, 0, 0],
-		tiles: [4, 4, 4, 4, 4, 4],
+		tiles: [0, 0, 0, 0, 0, 0],
 	},
 	{
 		name: "soil",
@@ -27,20 +26,25 @@ const blocks = [
 
 export function getBlockInfo(block)
 {
-	return blocks[block];
+	return blocks[block & 0xff];
 }
 
 export function isSolidBlock(block)
 {
-	return blocks[block].solid;
+	return blocks[block & 0xff].solid;
 }
 
 export function isVisibleBlock(block)
 {
-	return blocks[block].visible;
+	return blocks[block & 0xff].visible;
 }
 
 export function getBlockTile(block, fid)
 {
-	return blocks[block].tiles[fid];
+	return blocks[block & 0xff].tiles[fid];
+}
+
+export function getBlockSlope(block)
+{
+	return block >> 8 & 0xf;
 }

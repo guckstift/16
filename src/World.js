@@ -1,9 +1,10 @@
 import {Chunk} from "./Chunk.js";
 import {Generator} from "./Generator.js";
 import {boxcast} from "./boxcast.js";
-import {isSolidBlock} from "./blocks.js";
-import {WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, localChunkIndex, blockToChunk, localBlock}
-	from "./worldmetrics.js";
+import {isSolidBlock, getBlockSlope} from "./blocks.js";
+import {
+	WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
+} from "./worldmetrics.js";
 import * as vector from "../gluck/vector.js";
 import {radians} from "../gluck/math.js";
 
@@ -11,7 +12,8 @@ export class World
 {
 	constructor(display)
 	{
-		this.solidBlock = this.solidBlock.bind(this);
+		this.solidBlock    = this.solidBlock.bind(this);
+		this.getBlockSlope = this.getBlockSlope.bind(this);
 		
 		this.generator = new Generator();
 		this.sun       = vector.create(0, -1, 0);
@@ -23,14 +25,12 @@ export class World
 		for(let z=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
 				for(let x=0; x < WORLD_CHUNKS_WIDTH; x++) {
-					let chunk = new Chunk(display, x, y, z);
-					let buf   = this.generator.genChunk(x, y, z);
-					
-					chunk.packData(buf);
-					this.chunks[localChunkIndex(x, y, z)] = chunk;
+					this.chunks[localChunkIndex(x, y, z)] = new Chunk(display, x, y, z);
 				}
 			}
 		}
+		
+		this.generator.buildWorld(this);
 	}
 	
 	getChunk(x, y, z)
@@ -84,7 +84,17 @@ export class World
 		return y <= 0 || isSolidBlock(this.getBlock(x, y, z));
 	}
 	
-	setBlock(x, y, z, v)
+	getBlockSlope(x, y, z)
+	{
+		return getBlockSlope(this.getBlock(x, y, z));
+	}
+	
+	setBlockSlope(x, y, z, s)
+	{
+		return this.setBlock(x, y, z, this.getBlock(x, y, z) & 0xff, s);
+	}
+	
+	setBlock(x, y, z, v, s = 0)
 	{
 		let chunk = this.getChunk(
 			blockToChunk(x),
@@ -97,14 +107,14 @@ export class World
 				localBlock(x),
 				localBlock(y),
 				localBlock(z),
-				v,
+				v, s,
 			);
 		}
 	}
 
 	boxcast(boxmin, boxmax, vec)
 	{
-		return boxcast(boxmin, boxmax, vec, this.solidBlock);
+		return boxcast(boxmin, boxmax, vec, this.solidBlock, this.getBlockSlope);
 	}
 	
 	update()

@@ -23,9 +23,9 @@ export class ChunkData
 		return intervalSearch(this.data, localBlockIndex(x, y, z));
 	}
 	
-	setBlock(x, y, z, v)
+	setBlock(x, y, z, v, s = 0)
 	{
-		intervalPlace(this.data, localBlockIndex(x, y, z), v);
+		intervalPlace(this.data, localBlockIndex(x, y, z), v | (s << 8));
 	}
 	
 	forEach(fn)
@@ -111,7 +111,7 @@ function intervalPlace(data, i, v)
 						data.splice(ii, 2);
 					}
 				}
-				else if(ii + 3 < len && data[ii + 3] === v) {
+				else {
 					data.splice(ii + 2, 2);
 					data[ii + 1] = v;
 				}

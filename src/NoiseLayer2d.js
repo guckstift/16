@@ -4,9 +4,9 @@ import {WORLD_WIDTH} from "./worldmetrics.js";
 
 export class NoiseLayer2d
 {
-	constructor(lod, amp, seed)
+	constructor(scale, amp, seed)
 	{
-		let width   = WORLD_WIDTH >> lod;
+		let width   = WORLD_WIDTH / scale;
 		let samples = new Float64Array(width ** 2);
 		
 		for(let y = 0; y < width; y++) {
@@ -15,10 +15,10 @@ export class NoiseLayer2d
 			}
 		}
 		
-		this.width    = width;
-		this.samples  = samples;
-		this.scale    = 1 << lod;
-		this.invscale = 1 / this.scale;
+		this.width   = width;
+		this.samples = samples;
+		this.scale   = scale;
+		this.div     = 1 / scale;
 	}
 	
 	discreteSample(x, y)
@@ -32,8 +32,8 @@ export class NoiseLayer2d
 	
 	sample(x, y)
 	{
-		x *= this.invscale;
-		y *= this.invscale;
+		x *= this.div;
+		y *= this.div;
 		
 		let ix = Math.floor(x);
 		let iy = Math.floor(y);

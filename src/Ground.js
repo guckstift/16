@@ -87,7 +87,7 @@ const fragSrc = `
 	
 	void main()
 	{
-		if(vMpos.z > 0.0 && vMpos.z < 32.0 && vMpos.x > 0.0 && vMpos.x < 32.0) {
+		if(vMpos.z > 0.0 && vMpos.z < 256.0 && vMpos.x > 0.0 && vMpos.x < 256.0) {
 			discard;
 		}
 		

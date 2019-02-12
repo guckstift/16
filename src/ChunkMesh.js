@@ -1,6 +1,6 @@
 import {VertexLayout} from "../gluck/VertexLayout.js";
 import * as vector from "../gluck/vector.js";
-import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
+import {isSolidBlock, getBlockTile, isVisibleBlock, getBlockSlope} from "./blocks.js";
 import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
 
 export class ChunkMesh
@@ -174,12 +174,22 @@ function computeFaces()
 				let block = dataCache[i];
 				
 				if(isSolidBlock(block)) {
-					computeFace(x, y, z, +1, 0, 0, block, 0, rightFaces);
-					computeFace(x, y, z, -1, 0, 0, block, 1, leftFaces);
-					computeFace(x, y, z,  0,+1, 0, block, 2, topFaces);
-					computeFace(x, y, z,  0,-1, 0, block, 3, bottomFaces);
-					computeFace(x, y, z,  0, 0,+1, block, 4, backFaces);
-					computeFace(x, y, z,  0, 0,-1, block, 5, frontFaces);
+					if(getBlockSlope(block) > 0) {
+						//computeFace(x, y, z,  +1, 0, 0, block, 0, rightFaces);
+						//computeFace(x, y, z,  -1, 0, 0, block, 1, leftFaces);
+						//computeSlope(x, y, z, block);
+						//computeFace(x, y, z,   0,-1, 0, block, 3, bottomFaces);
+						//computeFace(x, y, z,   0, 0,+1, block, 4, backFaces);
+						//computeFace(x, y, z,   0, 0,-1, block, 5, frontFaces);
+					}
+					else {
+						computeFace(x, y, z, +1, 0, 0, block, 0, rightFaces);
+						computeFace(x, y, z, -1, 0, 0, block, 1, leftFaces);
+						computeFace(x, y, z,  0,+1, 0, block, 2, topFaces);
+						computeFace(x, y, z,  0,-1, 0, block, 3, bottomFaces);
+						computeFace(x, y, z,  0, 0,+1, block, 4, backFaces);
+						computeFace(x, y, z,  0, 0,-1, block, 5, frontFaces);
+					}
 				}
 				else {
 					rightFaces[i]  = 0;
@@ -194,26 +204,36 @@ function computeFaces()
 	}
 }
 
+function computeSlope(x, y, z, block)
+{
+	let tile  = getBlockTile(block, 2);
+	let slope = getBlockSlope(block);
+	
+	topFaces[localBlockIndex(x, y, z)] = (
+		createFaceInfo(tile, 0, 0, 0, 0, slope, 1)
+	);
+}
+
 function computeFace(x, y, z, nx, ny, nz, block, fid, targetFaces)
 {
-	let right      = false;
-	let left       = false;
-	let top        = false;
-	let bottom     = false;
-	let rtc        = false;
-	let ltc        = false;
-	let rbc        = false;
-	let lbc        = false;
-	let tile       = 0;
-	let visible    = 0;
-	let occlusion0 = 0;
-	let occlusion1 = 0;
-	let occlusion2 = 0;
-	let occlusion3 = 0;
+	let right   = false;
+	let left    = false;
+	let top     = false;
+	let bottom  = false;
+	let rtc     = false;
+	let ltc     = false;
+	let rbc     = false;
+	let lbc     = false;
+	let tile    = 0;
+	let visible = 0;
+	let occl0   = 0;
+	let occl1   = 0;
+	let occl2   = 0;
+	let occl3   = 0;
 	
 	if(!isSolidBlock(getCachedBlock(x + nx, y + ny, z + nz))) {
 		tile    = getBlockTile(block, fid);
-		visible = 1 << 16;
+		visible = 1;
 		
 		if(nx > 0) {
 			right  = isSolidBlock(getCachedBlock(x + 1, y,     z + 1));
@@ -276,15 +296,35 @@ function computeFace(x, y, z, nx, ny, nz, block, fid, targetFaces)
 			lbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z - 1));
 		}
 		
-		occlusion0 = getVertOcclusion(left,  bottom, lbc) << 8;
-		occlusion1 = getVertOcclusion(right, bottom, rbc) << 10;
-		occlusion2 = getVertOcclusion(left,  top,    ltc) << 12;
-		occlusion3 = getVertOcclusion(right, top,    rtc) << 14;
+		occl0 = getVertOcclusion(left,  bottom, lbc);
+		occl1 = getVertOcclusion(right, bottom, rbc);
+		occl2 = getVertOcclusion(left,  top,    ltc);
+		occl3 = getVertOcclusion(right, top,    rtc);
 	}
 	
 	targetFaces[localBlockIndex(x, y, z)] = (
-		tile | occlusion0 | occlusion1 | occlusion2 | occlusion3 | visible
+		createFaceInfo(tile, occl0, occl1, occl2, occl3, 0, visible)
 	);
+}
+
+function createFaceInfo(tile, occl0, occl1, occl2, occl3, slope, visible)
+{
+	return (
+		tile | occl0 << 8 | occl1 << 10 | occl2 << 12 | occl3 << 14 | slope << 16 | visible << 20
+	);
+}
+
+function extractFaceInfo(face)
+{
+	return {
+		tile:    face >>  0 & 0xff,
+		occl0:   face >>  8 & 0x03,
+		occl1:   face >> 10 & 0x03,
+		occl2:   face >> 12 & 0x03,
+		occl3:   face >> 14 & 0x03,
+		slope:   face >> 16 & 0x0f,
+		visible: face >> 20 & 0x01,
+	};
 }
 
 function mergeFaces()
@@ -311,8 +351,8 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 	let spanx = 1;
 	let spany = 1;
 	let flip  = false;
-	let oc0, oc1, oc2, oc3
-	let tile;
+	let info  = null;
+	let slope = 0;
 	
 	vector.create(0, 0, 0, i);
 	vector.create(0, 0, 0, j);
@@ -324,6 +364,7 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 			
 				index = localBlockIndex(...i);
 				first = targetFaces[index];
+				info  = extractFaceInfo(first);
 				
 				if(first) {
 					j.set(i);
@@ -366,15 +407,20 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 					q[ax1] = j[ax1] + s[ax1] * spany;
 					q[ax2] = j[ax2];
 					
-					oc0 = first >>  8 & 3;
-					oc1 = first >> 10 & 3;
-					oc2 = first >> 12 & 3;
-					oc3 = first >> 14 & 3;
+					slope = info.slope;
 					
-					tile = first & 0xff;
-					flip = oc0 + oc3 < oc1 + oc2;
-					
-					addQuad(j, q, ax0,ax1, oc0,oc1,oc2,oc3, nx,ny,nz, tile, flip);
+					if(slope > 0) {
+						flip = slope === 0b0001 || slope === 0b1000 || slope === 0b1110;
+						addSlopeQuad(j, q, info.tile, slope, flip);
+					}
+					else {
+						flip = info.occl0 + info.occl3 < info.occl1 + info.occl2;
+						addQuad(
+							j, q, ax0,ax1,
+							info.occl0,info.occl1,info.occl2,info.occl3,
+							nx,ny,nz, info.tile, flip
+						);
+					}
 				}
 			}
 		}
@@ -384,6 +430,77 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 function arrayCopyInside(buf, to, from, len)
 {
 	buf.set(buf.subarray(from, from + len), to);
+}
+
+function addSlopeQuad(p, q, tile, slope, flip)
+{
+	let i = meshVertCount * VERT_SIZE;
+	let s = i;
+	let nx = 128;
+	let ny = 128;
+	let nz = 128;
+	let oc0 = 0;
+	let oc1 = 0;
+	let oc2 = 0;
+	let oc3 = 0;
+	let slope00 = slope >> 0 & 1;
+	let slope10 = slope >> 1 & 1;
+	let slope01 = slope >> 2 & 1;
+	let slope11 = slope >> 3 & 1;
+	
+	r.set(p);
+	r[1] -= 1 - slope00;
+	meshVerts.set(r, i);
+	meshVerts[i + 3] = oc0;
+	meshVerts[i + 4] = nx;
+	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 6] = nz;
+	meshVerts[i + 7] = tile;
+	
+	i += VERT_SIZE;
+	r.set(p);
+	r[0] = q[0];
+	r[1] -= 1 - slope10;
+	meshVerts.set(r, i);
+	meshVerts[i + 3] = oc1;
+	meshVerts[i + 4] = nx;
+	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 6] = nz;
+	meshVerts[i + 7] = tile;
+	
+	i += VERT_SIZE;
+	r.set(p);
+	r[1] -= 1 - slope01;
+	r[2] = q[2];
+	meshVerts.set(r, i);
+	meshVerts[i + 3] = oc2;
+	meshVerts[i + 4] = nx;
+	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 6] = nz;
+	meshVerts[i + 7] = tile;
+	
+	i += VERT_SIZE;
+	arrayCopyInside(meshVerts, i, i - VERT_SIZE * 1, VERT_SIZE);
+	
+	i += VERT_SIZE;
+	arrayCopyInside(meshVerts, i, i - VERT_SIZE * 3, VERT_SIZE);
+	
+	i += VERT_SIZE;
+	r.set(q);
+	r[1] -= 1 - slope11;
+	meshVerts.set(r, i);
+	meshVerts[i + 3] = oc3;
+	meshVerts[i + 4] = nx;
+	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 6] = nz;
+	meshVerts[i + 7] = tile;
+	
+	if(flip) {
+		arrayCopyInside(meshVerts, s + VERT_SIZE * 2, s + VERT_SIZE * 5, VERT_SIZE);
+		arrayCopyInside(meshVerts, s + VERT_SIZE * 4, s + VERT_SIZE * 0, VERT_SIZE); 
+	}
+	
+	meshVertCount += 6;
 }
 
 function addQuad(p, q, ax0,ax1, oc0,oc1,oc2,oc3, nx,ny,nz, tile, flip)

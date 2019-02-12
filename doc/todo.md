@@ -2,9 +2,6 @@
 
 * make a slope block
 * collide and slide with slope block
-* bug: missing block at
-	[63.468985670479015, 47, 45.349814876914024]
-	[143.25, 47, 127.53403663611971]
 * async generation of chunks with worker
 
 # Done
@@ -16,3 +13,6 @@
 * blender a simple tree and import into game
 * make an infinite ground plane
 * create sun sprite moving with the vector
+* bug: missing block at [63.4689856704790, 47, 45.3498148769140][143.25, 47, 127.534036636119]
+	-> was a bug in ChunkData: intervalPlace()
+

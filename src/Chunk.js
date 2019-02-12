@@ -21,9 +21,10 @@ export class Chunk
 		return this.data.getBlock(x, y, z);
 	}
 	
-	setBlock(x, y, z, v)
+	setBlock(x, y, z, v, s = 0)
 	{
-		return this.data.setBlock(x, y, z, v);
+		this.dirty = true;
+		return this.data.setBlock(x, y, z, v, s);
 	}
 	
 	packData(buf)

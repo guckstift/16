@@ -4,12 +4,17 @@ export const CHUNK_BITS  = 4;
 export const CHUNK_WIDTH = 1 << CHUNK_BITS;
 export const CHUNK_SIZE  = CHUNK_WIDTH ** 3;
 
-export const WORLD_BITS         = 2;
+export const WORLD_BITS         = 4;
 export const WORLD_CHUNKS_WIDTH = 1 << WORLD_BITS;
 export const WORLD_CHUNKS_SIZE  = WORLD_CHUNKS_WIDTH ** 3;
 
 export const WORLD_WIDTH = WORLD_CHUNKS_WIDTH * CHUNK_WIDTH;
 export const WORLD_SIZE  = WORLD_WIDTH ** 3;
+
+export function globalBlockIndex(x, y, z)
+{
+	return z * WORLD_WIDTH * WORLD_WIDTH + y * WORLD_WIDTH + x;
+}
 
 export function localBlockIndex(x, y, z)
 {
