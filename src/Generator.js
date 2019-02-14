@@ -61,64 +61,11 @@ export class Generator
 								else {
 									this.chunkbuf[i] = 0;
 								}
-								/*
-								if(y - 1 === h
-									&& this.getHeight(x, z + 1) > h
-									&& this.getHeight(x - 1, z) >= h
-									&& this.getHeight(x + 1, z) >= h
-								) {
-									this.chunkbuf[i] = 1 | (0b1100 << 8);
-								}
-								if(y - 1 === h
-									&& this.getHeight(x, z - 1) > h
-									&& this.getHeight(x - 1, z) >= h
-									&& this.getHeight(x + 1, z) >= h
-								) {
-									this.chunkbuf[i] |= 1 | (0b0011 << 8);
-								}
-								if(y - 1 === h
-									&& this.getHeight(x + 1, z) > h
-									&& this.getHeight(x, z - 1) >= h
-									&& this.getHeight(x, z + 1) >= h
-								) {
-									this.chunkbuf[i] |= 1 | (0b1010 << 8);
-								}
-								if(y - 1 === h
-									&& this.getHeight(x - 1, z) > h
-									&& this.getHeight(x, z - 1) >= h
-									&& this.getHeight(x, z + 1) >= h
-								) {
-									this.chunkbuf[i] |= 1 | (0b0101 << 8);
-								}
-								
-								if(((this.chunkbuf[i] >> 8) & 0xf) === 0b1111) {
-									this.chunkbuf[i] = 0;
-								}
-								
-								/*
-								else if(
-									y - 1 === h
-									&& this.getHeight(x,     z + 1) > h
-									&& this.getHeight(x + 1, z)     > h
-								) {
-									this.chunkbuf[i] = 3 | (0b1110 << 8);
-								}
-								*/
-								/*
-								else if(
-									y - 1 === h
-									&& this.getHeight(x,     z + 1) >  h
-									&& this.getHeight(x + 1, z)     >  h
-									&& this.getHeight(x - 1, z)     <= h
-								) {
-									this.chunkbuf[i] = 3 | (0b1110 << 8);
-								}
-								*/
 							}
 						}
 					}
 					
-					world.getChunk(cx, cy, cz).packData(this.chunkbuf);
+					world.getChunk(cx, cy, cz).packFrom(this.chunkbuf);
 				}
 			}
 		}
@@ -147,36 +94,49 @@ export class Generator
 									&& this.getHeight(x - 1, z) >= h
 									&& this.getHeight(x + 1, z) >= h
 								) {
-									//world.setBlockSlope(x, y, z, 0b1100);
-									//this.chunkbuf[i] = 1 | (0b1100 << 8);
+									this.putSlope(world, x,   y, z, 0b1100);
+									this.putSlope(world, x-1, y, z, 0b1000);
+									this.putSlope(world, x+1, y, z, 0b0100);
 								}
 								if(y - 1 === h
 									&& this.getHeight(x, z - 1) > h
 									&& this.getHeight(x - 1, z) >= h
 									&& this.getHeight(x + 1, z) >= h
 								) {
-									//world.setBlock(x, y, z, 1, 0b0011);
-									//this.chunkbuf[i] |= 1 | (0b0011 << 8);
+									this.putSlope(world, x,   y, z, 0b0011);
+									this.putSlope(world, x-1, y, z, 0b0010);
+									this.putSlope(world, x+1, y, z, 0b0001);
 								}
 								if(y - 1 === h
 									&& this.getHeight(x + 1, z) > h
 									&& this.getHeight(x, z - 1) >= h
 									&& this.getHeight(x, z + 1) >= h
 								) {
-									//this.chunkbuf[i] |= 1 | (0b1010 << 8);
+									this.putSlope(world, x, y, z,   0b1010);
+									this.putSlope(world, x, y, z-1, 0b1000);
+									this.putSlope(world, x, y, z+1, 0b0010);
 								}
 								if(y - 1 === h
 									&& this.getHeight(x - 1, z) > h
 									&& this.getHeight(x, z - 1) >= h
 									&& this.getHeight(x, z + 1) >= h
 								) {
-									//this.chunkbuf[i] |= 1 | (0b0101 << 8);
+									this.putSlope(world, x, y, z,   0b0101);
+									this.putSlope(world, x, y, z-1, 0b0100);
+									this.putSlope(world, x, y, z+1, 0b0001);
 								}
 							}
 						}
 					}
 				}
 			}
+		}
+	}
+	
+	putSlope(world, x, y, z, sl)
+	{
+		if(!world.isSolidBlock(x, y, z) || world.getBlockSlope(x, y, z) > 0) {
+			world.setBlock(x, y, z, world.getBlockId(x, y - 1, z), sl, true);
 		}
 	}
 	

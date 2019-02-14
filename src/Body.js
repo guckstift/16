@@ -90,7 +90,7 @@ export class Body extends Movable
 		];
 		
 		samples.forEach(([x, z, ix, iz]) => {
-			if(this.world.solidBlock(ix, iy, iz)) {
+			if(this.world.isSolidBlock(ix, iy, iz)) {
 				let sl   = this.world.getBlockSlope(ix, iy, iz);
 				let miny = 0;
 				

@@ -24,27 +24,22 @@ const blocks = [
 	},
 ];
 
-export function getBlockInfo(block)
+export function getBlockInfo(id)
 {
-	return blocks[block & 0xff];
+	return blocks[id];
 }
 
-export function isSolidBlock(block)
+export function isSolidBlock(id)
 {
-	return blocks[block & 0xff].solid;
+	return getBlockInfo(id).solid;
 }
 
-export function isVisibleBlock(block)
+export function isVisibleBlock(id)
 {
-	return blocks[block & 0xff].visible;
+	return getBlockInfo(id).visible;
 }
 
-export function getBlockTile(block, fid)
+export function getBlockTile(id, fid)
 {
-	return blocks[block & 0xff].tiles[fid];
-}
-
-export function getBlockSlope(block)
-{
-	return block >> 8 & 0xf;
+	return getBlockInfo(id).tiles[fid];
 }

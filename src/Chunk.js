@@ -4,45 +4,27 @@ import {ChunkDrawable} from "./ChunkDrawable.js";
 import {CHUNK_WIDTH} from "./worldmetrics.js";
 import * as vector from "../gluck/vector.js";
 
-export class Chunk
+export class Chunk extends ChunkData
 {
-	constructor(display, x, y, z)
+	constructor(display)
 	{
-		this.pos      = vector.create(x, y, z);
-		this.chunkpos = vector.scale(this.pos, CHUNK_WIDTH);
-		this.data     = new ChunkData();
+		super();
+		
 		this.mesh     = new ChunkMesh();
 		this.drawable = new ChunkDrawable(display);
-		this.dirty    = true;
 	}
 	
-	getBlock(x, y, z)
+	update(chunkVicinity)
 	{
-		return this.data.getBlock(x, y, z);
-	}
-	
-	setBlock(x, y, z, v, s = 0)
-	{
-		this.dirty = true;
-		return this.data.setBlock(x, y, z, v, s);
-	}
-	
-	packData(buf)
-	{
-		this.data.pack(buf);
-	}
-	
-	update(world)
-	{
-		if(this.dirty) {
-			this.mesh.update(world.getChunkVicinity(...this.pos));
+		if(this.isModified()) {
+			super.update();
+			this.mesh.update(chunkVicinity);
 			this.drawable.update(this.mesh);
-			this.dirty = false;
 		}
 	}
 	
-	draw(camera, sun)
+	draw(pos, camera, sun)
 	{
-		this.drawable.draw(this.chunkpos, camera, sun);
+		this.drawable.draw(pos, camera, sun);
 	}
 }

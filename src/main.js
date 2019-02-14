@@ -10,7 +10,7 @@ import {Ground} from "./Ground.js";
 import {tree1} from "../models/tree1.js";
 
 let gravity   = 20;
-let runspeed  = 4;
+let runspeed  = 8;4;
 let jumpspeed = 7.5;
 
 document.body.style.overflow = "hidden";

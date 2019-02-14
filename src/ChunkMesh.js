@@ -1,19 +1,19 @@
 import {VertexLayout} from "../gluck/VertexLayout.js";
 import * as vector from "../gluck/vector.js";
-import {isSolidBlock, getBlockTile, isVisibleBlock, getBlockSlope} from "./blocks.js";
+import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
 import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
 
 export class ChunkMesh
 {
 	constructor()
 	{
-		this.data    = new Uint8Array(0);
+		this.verts   = new Uint8Array(0);
 		this.vertnum = 0;
 	}
 	
-	getData()
+	getVerts()
 	{
-		return this.data;
+		return this.verts;
 	}
 	
 	getVertNum()
@@ -21,47 +21,27 @@ export class ChunkMesh
 		return this.vertnum;
 	}
 	
-	update(chunkDataMatrix)
+	update(chunkVicinity)
 	{
-		if(!Array.isArray(chunkDataMatrix) || chunkDataMatrix.length < 27) {
-			singleChunkDataMatrix[13] = chunkDataMatrix;
-			chunkDataMatrix           = singleChunkDataMatrix;
-		}
+		let chunk = chunkVicinity[13];
 		
-		let chunkData = chunkDataMatrix[13];
-		
-		if(!chunkData || chunkData.isUniform() && !isVisibleBlock(chunkData.getUniform())) {
+		if(!chunk || chunk.isUniform() && !isVisibleBlock(chunk.getUniform())) {
 			this.data    = new Uint8Array(0);
 			this.vertnum = 0;
 		}
 		else {
-			this.data    = createMesh(chunkDataMatrix);
-			this.vertnum = meshVertCount;
+			this.verts   = createMesh(chunkVicinity);
+			this.vertnum = getLastVertNum();
 		}
 	}
 }
 
-export let VERT_SIZE = 3 + 1 + 3 + 1;
-export let QUAD_SIZE = 2 * 3 * VERT_SIZE;
-
-export let vertLayout = new VertexLayout(
-	"ubyte",
-	["vert", 3], ["occl", 1], ["normal", 3], ["tile", 1]
+export let CHUNK_VERT_LAYOUT = new VertexLayout(
+	"ubyte", ["vert", 3], ["occl", 1], ["normal", 3], ["tile", 1]
 );
 
-let singleChunkDataMatrix = [
-	null, null, null,
-	null, null, null,
-	null, null, null,
-
-	null, null, null,
-	null, null, null,
-	null, null, null,
-
-	null, null, null,
-	null, null, null,
-	null, null, null,
-];
+let VERT_SIZE = CHUNK_VERT_LAYOUT.getSize();
+let QUAD_SIZE = 2 * 3 * VERT_SIZE;
 
 let dataCacheMatrix = [
 	new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
@@ -102,9 +82,72 @@ function createMesh(cdm)
 	return new Uint8Array(meshVerts.subarray(0, meshVertCount * VERT_SIZE));
 }
 
+function getBlockId(block)
+{
+	return block & 0xff;
+}
+
+function getBlockSlope(block)
+{
+	return block >> 8 & 0xf;
+}
+
+function getLastVertNum()
+{
+	return meshVertCount;
+}
+
 function getDataCache(x, y, z)
 {
 	return dataCacheMatrix[x + 1 + 3 * (y + 1) + 9 * (z + 1)];
+}
+
+function getCachedBlockId(x, y, z)
+{
+	return getBlockId(getCachedBlock(x, y, z));
+}
+
+function isOccluding(block)
+{
+	return isSolidBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
+}
+
+function getSlopeNormalPattern(sl)
+{
+	switch(sl) {
+		case 0b0000:
+			return [0,0, 0,0, 0,0, 0,0]
+		case 0b0001:
+			return [1,1, 1,0, 0,1, 1,1];
+		case 0b0010:
+			return [-1,1, -1,1, -1,1, 0,1];
+		case 0b0011:
+			return [0,1, 0,1, 0,1, 0,1];
+		case 0b0100:
+			return [0,-1, 1-1, 1-1, 1, 0];
+		case 0b0101:
+			return [1,0, 1,0, 1,0, 1,0];
+		case 0b0110:
+			return [-1,-1,  0,0, 0,0, 1,1];
+		case 0b0111:
+			return [ 1,1,  0,1, 1,0,  1,1];
+		case 0b1000:
+			return [-1,-1, 0,-1, -1,0, -1,-1];
+		case 0b1001:
+			return [0,0, 1,-1, -1,1, 0,0];
+		case 0b1010:
+			return [-1,0, -1,0, -1,0, -1,0];
+		case 0b1011:
+			return [ 0,1, -1,1, -1,1, -1,0];
+		case 0b1100:
+			return [ 0,-1, 0,-1, 0,-1, 0,-1];
+		case 0b1101:
+			return [ 1,0, 1,-1, 1,-1, 0,-1];
+		case 0b1110:
+			return [-1,-1, -1,0,  0,-1, -1,-1];
+		case 0b1111:
+			return [0,0, 0,0, 0,0, 0,0];
+	}
 }
 
 function getCachedBlock(x, y, z)
@@ -150,17 +193,10 @@ function getVertOcclusion(side0, side1, corner)
 	return side0 && side1 ? 3 : side0 + side1 + corner;
 }
 
-function unpackChunkData(chunkDataMatrix)
+function unpackChunkData(chunkVicinity)
 {
 	for(let i = 0; i < 27; i++) {
-		let chunkData = chunkDataMatrix[i];
-		
-		if(chunkData) {
-			chunkData.unpack(dataCacheMatrix[i]);
-		}
-		else {
-			dataCacheMatrix[i].fill(0);
-		}
+		chunkVicinity[i].unpackTo(dataCacheMatrix[i]);
 	}
 }
 
@@ -172,49 +208,36 @@ function computeFaces()
 		for(let y = 0; y < CHUNK_WIDTH; y++) {
 			for(let x = 0; x < CHUNK_WIDTH; x++, i++) {
 				let block = dataCache[i];
+				let id    = getBlockId(block);
+				let slope = getBlockSlope(block);
 				
-				if(isSolidBlock(block)) {
-					if(getBlockSlope(block) > 0) {
-						//computeFace(x, y, z,  +1, 0, 0, block, 0, rightFaces);
-						//computeFace(x, y, z,  -1, 0, 0, block, 1, leftFaces);
-						//computeSlope(x, y, z, block);
-						//computeFace(x, y, z,   0,-1, 0, block, 3, bottomFaces);
-						//computeFace(x, y, z,   0, 0,+1, block, 4, backFaces);
-						//computeFace(x, y, z,   0, 0,-1, block, 5, frontFaces);
+				rightFaces[i]  = 0;
+				leftFaces[i]   = 0;
+				topFaces[i]    = 0;
+				bottomFaces[i] = 0;
+				backFaces[i]   = 0;
+				frontFaces[i]  = 0;
+				
+				if(isSolidBlock(id)) {
+					if(slope === 0) {
+						computeFace(x, y, z, +1, 0, 0, id, 0, rightFaces);
+						computeFace(x, y, z, -1, 0, 0, id, 1, leftFaces);
+						computeFace(x, y, z,  0,+1, 0, id, 2, topFaces);
+						computeFace(x, y, z,  0,-1, 0, id, 3, bottomFaces);
+						computeFace(x, y, z,  0, 0,+1, id, 4, backFaces);
+						computeFace(x, y, z,  0, 0,-1, id, 5, frontFaces)
 					}
 					else {
-						computeFace(x, y, z, +1, 0, 0, block, 0, rightFaces);
-						computeFace(x, y, z, -1, 0, 0, block, 1, leftFaces);
-						computeFace(x, y, z,  0,+1, 0, block, 2, topFaces);
-						computeFace(x, y, z,  0,-1, 0, block, 3, bottomFaces);
-						computeFace(x, y, z,  0, 0,+1, block, 4, backFaces);
-						computeFace(x, y, z,  0, 0,-1, block, 5, frontFaces);
+						let occl    = computeFaceOcclusion(x, y, z, 0, 1, 0);
+						topFaces[i] = createFaceInfo(getBlockTile(id, 2), ...occl, slope, 1);
 					}
-				}
-				else {
-					rightFaces[i]  = 0;
-					leftFaces[i]   = 0;
-					topFaces[i]    = 0;
-					bottomFaces[i] = 0;
-					backFaces[i]   = 0;
-					frontFaces[i]  = 0;
 				}
 			}
 		}
 	}
 }
 
-function computeSlope(x, y, z, block)
-{
-	let tile  = getBlockTile(block, 2);
-	let slope = getBlockSlope(block);
-	
-	topFaces[localBlockIndex(x, y, z)] = (
-		createFaceInfo(tile, 0, 0, 0, 0, slope, 1)
-	);
-}
-
-function computeFace(x, y, z, nx, ny, nz, block, fid, targetFaces)
+function computeFaceOcclusion(x, y, z, nx, ny, nz)
 {
 	let right   = false;
 	let left    = false;
@@ -224,86 +247,94 @@ function computeFace(x, y, z, nx, ny, nz, block, fid, targetFaces)
 	let ltc     = false;
 	let rbc     = false;
 	let lbc     = false;
-	let tile    = 0;
-	let visible = 0;
 	let occl0   = 0;
 	let occl1   = 0;
 	let occl2   = 0;
 	let occl3   = 0;
+
+	if(nx > 0) {
+		right  = isOccluding(getCachedBlock(x + 1, y,     z + 1));
+		left   = isOccluding(getCachedBlock(x + 1, y,     z - 1));
+		top    = isOccluding(getCachedBlock(x + 1, y + 1, z));
+		bottom = isOccluding(getCachedBlock(x + 1, y - 1, z));
+		rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
+		ltc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
+		rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
+		lbc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
+	}
+	else if(nx < 0) {
+		right  = isOccluding(getCachedBlock(x - 1, y,     z - 1));
+		left   = isOccluding(getCachedBlock(x - 1, y,     z + 1));
+		top    = isOccluding(getCachedBlock(x - 1, y + 1, z));
+		bottom = isOccluding(getCachedBlock(x - 1, y - 1, z));
+		rtc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
+		ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
+		rbc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
+		lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
+	}
+	else if(ny > 0) {
+		right  = isOccluding(getCachedBlock(x + 1, y + 1, z));
+		left   = isOccluding(getCachedBlock(x - 1, y + 1, z));
+		top    = isOccluding(getCachedBlock(x,     y + 1, z + 1));
+		bottom = isOccluding(getCachedBlock(x,     y + 1, z - 1));
+		rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
+		ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
+		rbc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
+		lbc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
+	}
+	else if(ny < 0) {
+		right  = isOccluding(getCachedBlock(x + 1, y - 1, z));
+		left   = isOccluding(getCachedBlock(x - 1, y - 1, z));
+		top    = isOccluding(getCachedBlock(x,     y - 1, z - 1));
+		bottom = isOccluding(getCachedBlock(x,     y - 1, z + 1));
+		rtc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
+		ltc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
+		rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
+		lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
+	}
+	else if(nz > 0) {
+		right  = isOccluding(getCachedBlock(x - 1, y,     z + 1));
+		left   = isOccluding(getCachedBlock(x + 1, y,     z + 1));
+		top    = isOccluding(getCachedBlock(x,     y + 1, z + 1));
+		bottom = isOccluding(getCachedBlock(x,     y - 1, z + 1));
+		rtc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
+		ltc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
+		rbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
+		lbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
+	}
+	else if(nz < 0) {
+		right  = isOccluding(getCachedBlock(x + 1, y,     z - 1));
+		left   = isOccluding(getCachedBlock(x - 1, y,     z - 1));
+		top    = isOccluding(getCachedBlock(x,     y + 1, z - 1));
+		bottom = isOccluding(getCachedBlock(x,     y - 1, z - 1));
+		rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
+		ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
+		rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
+		lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
+	}
 	
-	if(!isSolidBlock(getCachedBlock(x + nx, y + ny, z + nz))) {
-		tile    = getBlockTile(block, fid);
+	occl0 = getVertOcclusion(left,  bottom, lbc);
+	occl1 = getVertOcclusion(right, bottom, rbc);
+	occl2 = getVertOcclusion(left,  top,    ltc);
+	occl3 = getVertOcclusion(right, top,    rtc);
+	
+	return [occl0, occl1, occl2, occl3];
+}
+
+function computeFace(x, y, z, nx, ny, nz, id, fid, targetFaces)
+{
+	let tile    = 0;
+	let visible = 0;
+	let occl    = [0,0,0,0];
+	
+	if(!isOccluding(getCachedBlock(x + nx, y + ny, z + nz))) {
+		tile    = getBlockTile(id, fid);
 		visible = 1;
-		
-		if(nx > 0) {
-			right  = isSolidBlock(getCachedBlock(x + 1, y,     z + 1));
-			left   = isSolidBlock(getCachedBlock(x + 1, y,     z - 1));
-			top    = isSolidBlock(getCachedBlock(x + 1, y + 1, z));
-			bottom = isSolidBlock(getCachedBlock(x + 1, y - 1, z));
-			rtc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z + 1));
-			ltc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z - 1));
-			rbc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z + 1));
-			lbc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z - 1));
-		}
-		else if(nx < 0) {
-			right  = isSolidBlock(getCachedBlock(x - 1, y,     z - 1));
-			left   = isSolidBlock(getCachedBlock(x - 1, y,     z + 1));
-			top    = isSolidBlock(getCachedBlock(x - 1, y + 1, z));
-			bottom = isSolidBlock(getCachedBlock(x - 1, y - 1, z));
-			rtc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z - 1));
-			ltc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z + 1));
-			rbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z - 1));
-			lbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z + 1));
-		}
-		else if(ny > 0) {
-			right  = isSolidBlock(getCachedBlock(x + 1, y + 1, z));
-			left   = isSolidBlock(getCachedBlock(x - 1, y + 1, z));
-			top    = isSolidBlock(getCachedBlock(x,     y + 1, z + 1));
-			bottom = isSolidBlock(getCachedBlock(x,     y + 1, z - 1));
-			rtc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z + 1));
-			ltc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z + 1));
-			rbc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z - 1));
-			lbc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z - 1));
-		}
-		else if(ny < 0) {
-			right  = isSolidBlock(getCachedBlock(x + 1, y - 1, z));
-			left   = isSolidBlock(getCachedBlock(x - 1, y - 1, z));
-			top    = isSolidBlock(getCachedBlock(x,     y - 1, z - 1));
-			bottom = isSolidBlock(getCachedBlock(x,     y - 1, z + 1));
-			rtc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z - 1));
-			ltc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z - 1));
-			rbc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z + 1));
-			lbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z + 1));
-		}
-		else if(nz > 0) {
-			right  = isSolidBlock(getCachedBlock(x - 1, y,     z + 1));
-			left   = isSolidBlock(getCachedBlock(x + 1, y,     z + 1));
-			top    = isSolidBlock(getCachedBlock(x,     y + 1, z + 1));
-			bottom = isSolidBlock(getCachedBlock(x,     y - 1, z + 1));
-			rtc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z + 1));
-			ltc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z + 1));
-			rbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z + 1));
-			lbc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z + 1));
-		}
-		else if(nz < 0) {
-			right  = isSolidBlock(getCachedBlock(x + 1, y,     z - 1));
-			left   = isSolidBlock(getCachedBlock(x - 1, y,     z - 1));
-			top    = isSolidBlock(getCachedBlock(x,     y + 1, z - 1));
-			bottom = isSolidBlock(getCachedBlock(x,     y - 1, z - 1));
-			rtc    = isSolidBlock(getCachedBlock(x + 1, y + 1, z - 1));
-			ltc    = isSolidBlock(getCachedBlock(x - 1, y + 1, z - 1));
-			rbc    = isSolidBlock(getCachedBlock(x + 1, y - 1, z - 1));
-			lbc    = isSolidBlock(getCachedBlock(x - 1, y - 1, z - 1));
-		}
-		
-		occl0 = getVertOcclusion(left,  bottom, lbc);
-		occl1 = getVertOcclusion(right, bottom, rbc);
-		occl2 = getVertOcclusion(left,  top,    ltc);
-		occl3 = getVertOcclusion(right, top,    rtc);
+		occl    = computeFaceOcclusion(x, y, z, nx, ny, nz);
 	}
 	
 	targetFaces[localBlockIndex(x, y, z)] = (
-		createFaceInfo(tile, occl0, occl1, occl2, occl3, 0, visible)
+		createFaceInfo(tile, ...occl, 0, visible)
 	);
 }
 
@@ -411,7 +442,7 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 					
 					if(slope > 0) {
 						flip = slope === 0b0001 || slope === 0b1000 || slope === 0b1110;
-						addSlopeQuad(j, q, info.tile, slope, flip);
+						addSlopeQuad(j, q, info.tile, slope, flip, info.occl0,info.occl1,info.occl2,info.occl3);
 					}
 					else {
 						flip = info.occl0 + info.occl3 < info.occl1 + info.occl2;
@@ -432,30 +463,37 @@ function arrayCopyInside(buf, to, from, len)
 	buf.set(buf.subarray(from, from + len), to);
 }
 
-function addSlopeQuad(p, q, tile, slope, flip)
+function addSlopeQuad(p, q, tile, slope, flip, oc0,oc1,oc2,oc3)
 {
 	let i = meshVertCount * VERT_SIZE;
 	let s = i;
-	let nx = 128;
-	let ny = 128;
-	let nz = 128;
-	let oc0 = 0;
-	let oc1 = 0;
-	let oc2 = 0;
-	let oc3 = 0;
+	let nx = 0;
+	let ny = 2 * 64;
+	let nz = 0;
 	let slope00 = slope >> 0 & 1;
 	let slope10 = slope >> 1 & 1;
 	let slope01 = slope >> 2 & 1;
 	let slope11 = slope >> 3 & 1;
+	let pattern = getSlopeNormalPattern(slope);
+	
+	nx = pattern[0];
+	nz = pattern[1];
+	nx = (nx + 1) * 64;
+	nz = (nz + 1) * 64;
 	
 	r.set(p);
 	r[1] -= 1 - slope00;
 	meshVerts.set(r, i);
 	meshVerts[i + 3] = oc0;
 	meshVerts[i + 4] = nx;
-	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 5] = ny;
 	meshVerts[i + 6] = nz;
 	meshVerts[i + 7] = tile;
+	
+	nx = pattern[2];
+	nz = pattern[3];
+	nx = (nx + 1) * 64;
+	nz = (nz + 1) * 64;
 	
 	i += VERT_SIZE;
 	r.set(p);
@@ -464,9 +502,14 @@ function addSlopeQuad(p, q, tile, slope, flip)
 	meshVerts.set(r, i);
 	meshVerts[i + 3] = oc1;
 	meshVerts[i + 4] = nx;
-	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 5] = ny;
 	meshVerts[i + 6] = nz;
 	meshVerts[i + 7] = tile;
+	
+	nx = pattern[4];
+	nz = pattern[5];
+	nx = (nx + 1) * 64;
+	nz = (nz + 1) * 64;
 	
 	i += VERT_SIZE;
 	r.set(p);
@@ -475,7 +518,7 @@ function addSlopeQuad(p, q, tile, slope, flip)
 	meshVerts.set(r, i);
 	meshVerts[i + 3] = oc2;
 	meshVerts[i + 4] = nx;
-	meshVerts[i + 5] = ny + 1;
+	meshVerts[i + 5] = ny;
 	meshVerts[i + 6] = nz;
 	meshVerts[i + 7] = tile;
 	
@@ -484,6 +527,11 @@ function addSlopeQuad(p, q, tile, slope, flip)
 	
 	i += VERT_SIZE;
 	arrayCopyInside(meshVerts, i, i - VERT_SIZE * 3, VERT_SIZE);
+	
+	nx = pattern[6];
+	nz = pattern[7];
+	nx = (nx + 1) * 64;
+	nz = (nz + 1) * 64;
 	
 	i += VERT_SIZE;
 	r.set(q);
@@ -508,9 +556,9 @@ function addQuad(p, q, ax0,ax1, oc0,oc1,oc2,oc3, nx,ny,nz, tile, flip)
 	let i = meshVertCount * VERT_SIZE;
 	let s = i;
 	
-	nx += 128;
-	ny += 128;
-	nz += 128;
+	nx = (nx + 1) * 64;
+	ny = (ny + 1) * 64;
+	nz = (nz + 1) * 64;
 	
 	meshVerts.set(p, i);
 	meshVerts[i + 3] = oc0;

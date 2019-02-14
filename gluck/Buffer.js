@@ -60,9 +60,9 @@ export class Buffer
 		return this.layout.getStride();
 	}
 	
-	getSize(field)
+	getFieldSize(field)
 	{
-		return this.layout.getSize(field);
+		return this.layout.getFieldSize(field);
 	}
 	
 	getOffset(field)
@@ -73,6 +73,11 @@ export class Buffer
 	getNames()
 	{
 		return this.layout.getNames();
+	}
+	
+	getSize()
+	{
+		return this.size;
 	}
 	
 	update(data)

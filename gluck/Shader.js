@@ -87,7 +87,7 @@ export class Shader
 			
 			gl.vertexAttribPointer(
 				loca,
-				buffer.getSize(field),
+				buffer.getFieldSize(field),
 				buffer.getType(),
 				false,
 				buffer.getStride(),
@@ -143,10 +143,14 @@ export class Shader
 		let gl = this.gl;
 		
 		if(this.ibuf) {
-			gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+			if(this.ibuf.getVerts() > 0) {
+				gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+			}
 		}
 		else {
-			gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+			if(this.verts > 0) {
+				gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+			}
 		}
 	}
 }

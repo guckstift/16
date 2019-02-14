@@ -1,35 +1,33 @@
-import {vertLayout} from "./ChunkMesh.js";
+import {CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
 
 export class ChunkDrawable
 {
 	constructor(display)
 	{
 		this.display = display;
-		this.buf     = display.Buffer("dynamic", vertLayout);
+		this.buf     = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
 		this.shader  = display.getShader("chunk", vertSrc, fragSrc);
 		this.atlas   = display.getTexture("gfx/atlas.png");
-		this.vertnum = 0;
 	}
 	
 	update(mesh)
 	{
-		this.buf.update(mesh.getData());
-		this.vertnum = mesh.getVertNum();
+		this.buf.update(mesh.getVerts());
 	}
 	
 	draw(pos, camera, sun)
 	{
-		let shader = this.shader;
-		let buf    = this.buf;
-		let gl     = this.display.gl;
-		
-		if(this.vertnum) {
+		if(this.buf.getSize() > 0) {
+			let shader = this.shader;
+			let buf    = this.buf;
+			let gl     = this.display.gl;
+			
 			shader.use();
-			shader.uniform("sun",    sun);
-			shader.uniform("campos", camera.pos);
-			shader.uniform("proj", camera.getProjection());
+			shader.uniform("sun",       sun);
+			shader.uniform("campos",    camera.pos);
+			shader.uniform("proj",      camera.getProjection());
 			shader.uniform("viewModel", camera.getViewModel(pos));
-			shader.texture("atlas",  this.atlas);
+			shader.texture("atlas",     this.atlas);
 			shader.buffer(buf);
 			shader.triangles();
 		}
@@ -55,7 +53,7 @@ const vertSrc = `
 	void main()
 	{
 		vec3 correctVert = vert;
-		vec3 correctNormal = normal - vec3(128.0);
+		vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
 		vec4 translatedVert = viewModel * vec4(correctVert, 1.0);
 		
 		gl_Position = proj * translatedVert;
@@ -70,22 +68,22 @@ const vertSrc = `
 			0.5 * max(0.0, dot(correctNormal, -sun))
 		);
 		
-		if(correctNormal.x > 0.0) {
-			planePos = vec2( 0.0 + correctVert.z, 16.0 - correctVert.y);
-		}
-		else if(correctNormal.x < 0.0) {
-			planePos = vec2(16.0 - correctVert.z, 16.0 - correctVert.y);
-		}
-		else if(correctNormal.y > 0.0) {
+		if(correctNormal.y > 0.125) {
 			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.z);
 		}
-		else if(correctNormal.y < 0.0) {
+		else if(correctNormal.y < -0.125) {
 			planePos = vec2( 0.0 + correctVert.x,  0.0 + correctVert.z);
 		}
-		else if(correctNormal.z > 0.0) {
+		else if(correctNormal.x > 0.125) {
+			planePos = vec2( 0.0 + correctVert.z, 16.0 - correctVert.y);
+		}
+		else if(correctNormal.x < -0.125) {
+			planePos = vec2(16.0 - correctVert.z, 16.0 - correctVert.y);
+		}
+		else if(correctNormal.z > 0.125) {
 			planePos = vec2(16.0 - correctVert.x, 16.0 - correctVert.y);
 		}
-		else if(correctNormal.z < 0.0) {
+		else if(correctNormal.z < -0.125) {
 			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
 		}
 	}
