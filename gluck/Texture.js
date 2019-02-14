@@ -16,6 +16,12 @@ export class Texture
 			this.tex = tex;
 		};
 		
+		this.gl  = gl;
 		this.tex = display.defaultTex;
+	}
+	
+	bind()
+	{
+		this.gl.bindTexture(this.gl.TEXTURE_2D, this.tex);
 	}
 }

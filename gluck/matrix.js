@@ -98,6 +98,43 @@ export function perspective(fovy, aspect, near, far, rh = false, out = new Float
 	return out;
 }
 
+export function orthoBounds(left, right, bottom, top, near, far, out = new Float32Array(16))
+{
+	let sx = 2 / (right - left);
+	let sy = 2 / (top - bottom);
+	let sz = 2 / (far - near);
+	let ox = 0;(left + right) * sx;
+	let oy = 0;(bottom + top) * sy;
+	let oz = 0;(near + far) * sz;
+	
+	out.set([
+		sx, 0,  0,  0,
+		0,  sy, 0,  0,
+		0,  0,  sz, 0,
+		ox, oy, oz, 1,
+	]);
+	
+	return out;
+}
+
+export function ortho(scale, aspect, near, far, rh = false, out = new Float32Array(16))
+{
+	let fl = rh ? -1 : +1;
+	let sy = scale;
+	let sx = sy / aspect;
+	let sz = 2 / (far - near);
+	let oz = (far + near) / (near - far);
+	
+	out.set([
+		sx, 0,  0,  0,
+		0,  sy, 0,  0,
+		0,  0,  sz, 0,
+		0,  0,  oz, 1,
+	]);
+	
+	return out;
+}
+
 export function multiply(a, b, out = new Float32Array(16))
 {
 	let a00 = a[0],  a01 = a[1],  a02 = a[2],  a03 = a[3];

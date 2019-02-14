@@ -2,6 +2,7 @@ import {Dom} from "./Dom.js";
 import {Shader} from "./Shader.js";
 import {Buffer} from "./Buffer.js";
 import {Texture} from "./Texture.js";
+import {DataTexture} from "./DataTexture.js";
 
 export class Display extends Dom
 {
@@ -23,8 +24,10 @@ export class Display extends Dom
 		this.shadercache = {};
 		this.canvas      = canvas;
 		this.gl          = gl;
+		this.gldt        = gl.getExtension("WEBGL_depth_texture");
 		this.frame       = this.frame.bind(this);
 		this.defaultTex  = gl.createTexture();
+		this.framebuf    = gl.createFramebuffer();
 		this.last        = 0;
 		this.delta       = 0;
 
@@ -64,6 +67,32 @@ export class Display extends Dom
 		this.resize(window.innerWidth, window.innerHeight);
 	}
 	
+	renderToTextures(colorTex, depthTex)
+	{
+		let gl = this.gl;
+		
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuf);
+		
+		gl.framebufferTexture2D(
+			gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorTex.tex, 0
+		);
+		
+		gl.framebufferTexture2D(
+			gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTex.tex, 0
+		);
+		
+		gl.viewport(0, 0, colorTex.width, colorTex.height);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	}
+	
+	renderToCanvas()
+	{
+		let gl = this.gl;
+		
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+	}
+	
 	getTexture(url)
 	{
 		if(!this.texcache[url]) {
@@ -95,5 +124,10 @@ export class Display extends Dom
 	Texture(url)
 	{
 		return new Texture(this, url);
+	}
+	
+	DataTexture(width, height, isdepth = false)
+	{
+		return new DataTexture(this, width, height, isdepth);
 	}
 }

@@ -1,6 +1,6 @@
-import {Perspective} from "../gluck/Perspective.js";
+import {Camera} from "../gluck/Camera.js";
 
-export class Camera extends Perspective
+export class BodyCamera extends Camera
 {
 	constructor()
 	{

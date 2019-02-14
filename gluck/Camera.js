@@ -4,11 +4,13 @@ import {radians} from "./math.js";
 
 let nullVector = vector.create64();
 
-export class Perspective
+export class Camera
 {
-	constructor(righthand = false)
+	constructor(righthand = false, ortho = false)
 	{
 		this.righthand = righthand;
+		this.ortho     = ortho;
+		this.oscale    = 1;
 		this.fovy      = 90;
 		this.aspect    = 1;
 		this.near      = 0.0625;
@@ -25,6 +27,14 @@ export class Perspective
 		this.view      = matrix.identity();
 		this.viewProj  = matrix.identity();
 		this.model     = matrix.identity();
+	}
+	
+	setOrthoScale(oscale)
+	{
+		this.oscale    = oscale;
+		this.projDirty = true;
+		
+		return this;
 	}
 	
 	setFovy(fovy)
@@ -59,9 +69,15 @@ export class Perspective
 		return this;
 	}
 	
-	setProjection(fovy, aspect, near, far)
+	setProjection(fovyOrOscale, aspect, near, far)
 	{
-		this.setFovy(fovy);
+		if(this.ortho) {
+			this.setOrthoScale(fovyOrOscale);
+		}
+		else {
+			this.setFovy(fovyOrOscale);
+		}
+		
 		this.setAspect(aspect);
 		this.setNear(near);
 		this.setFar(far);
@@ -118,14 +134,21 @@ export class Perspective
 	getProjection()
 	{
 		if(this.projDirty) {
-			matrix.perspective(
-				radians(this.fovy),
-				this.aspect,
-				this.near,
-				this.far,
-				this.righthand,
-				this.proj
-			);
+			if(this.ortho) {
+				matrix.ortho(
+					this.oscale, this.aspect, this.near, this.far, this.righthand, this.proj
+				);
+			}
+			else {
+				matrix.perspective(
+					radians(this.fovy),
+					this.aspect,
+					this.near,
+					this.far,
+					this.righthand,
+					this.proj
+				);
+			}
 			
 			this.projDirty = false;
 		}
