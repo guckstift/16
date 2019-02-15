@@ -1,12 +1,13 @@
-import {Chunk} from "./Chunk.js";
-import {Generator} from "./Generator.js";
+import {ChunkDrawable} from "./ChunkDrawable.js";
 import {boxcast} from "./boxcast.js";
 import {getBlockInfo, isSolidBlock, isVisibleBlock, getBlockTile} from "./blocks.js";
+import {Sun} from "./Sun.js";
+import {Skybox} from "./Skybox.js";
+import {Ground} from "./Ground.js";
+
 import {
 	WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
 } from "./worldmetrics.js";
-import * as vector from "../gluck/vector.js";
-import {radians} from "../gluck/math.js";
 
 export class World
 {
@@ -17,22 +18,14 @@ export class World
 		
 		this.chunkVicinity = Array(3 ** 3);
 		this.chunks        = Array(WORLD_CHUNKS_SIZE);
-		this.emptyChunk    = new Chunk(display);
-		this.generator     = new Generator();
-		this.sun           = vector.create(0, -1, 0);
+		this.emptyChunk    = new ChunkDrawable(display);
+		this.sun           = new Sun(5);
+		this.skybox        = new Skybox(display, this.sun);
+		this.ground        = new Ground(display, this.sun);
 		
-		vector.rotateX(this.sun, radians(-30), this.sun);
-		vector.rotateY(this.sun, radians(-30), this.sun);
-		
-		for(let z=0; z < WORLD_CHUNKS_WIDTH; z++) {
-			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
-				for(let x=0; x < WORLD_CHUNKS_WIDTH; x++) {
-					this.chunks[localChunkIndex(x, y, z)] = new Chunk(display);
-				}
-			}
-		}
-		
-		this.generator.buildWorld(this);
+		this.forEachChunk(({i}) => {
+			this.chunks[i] = new ChunkDrawable(display);
+		});
 	}
 	
 	getChunk(x, y, z)
@@ -102,7 +95,7 @@ export class World
 	
 	forEachChunk(fn)
 	{
-		for(let z=0, i=0; z < WORLD_CHUNKS_WIDTH; z++) {
+		for(let z=0, i=0, oz=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			let oz = z * CHUNK_WIDTH;
 			
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
@@ -111,10 +104,30 @@ export class World
 				for(let x=0; x < WORLD_CHUNKS_WIDTH; x++, i++) {
 					let ox = x * CHUNK_WIDTH;
 					
-					fn(this.chunks[i], i, x, y, z, ox, oy, oz);
+					fn({
+						c: this.chunks[i],
+						i, x, y, z, ox, oy, oz,
+					});
 				}
 			}
 		}
+	}
+	
+	forEachBlock(fn)
+	{
+		this.forEachChunk(({c, ox, oy, oz}) => {
+			c.forEachBlock(({b, id, sl, x, y, z}) => {
+				fn({
+					c, b, id, sl,
+					x:  ox + x,
+					y:  oy + y,
+					z:  oz + z,
+					lx: x,
+					ly: y,
+					lz: z,
+				});
+			});
+		});
 	}
 	
 	setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
@@ -141,19 +154,22 @@ export class World
 		return boxcast(boxmin, boxmax, vec, this.isSolidBlock, this.getBlockSlope);
 	}
 	
-	update()
+	update(delta)
 	{
-		this.forEachChunk((chunk, i, x, y, z, ox, oy, oz) => {
-			chunk.update(this.getChunkVicinity(x, y, z));
+		this.forEachChunk(({c, x, y, z}) => {
+			c.update(this.getChunkVicinity(x, y, z));
 		});
 		
-		vector.rotateZ(this.sun, 1/1024, this.sun);
+		this.sun.update(delta);
 	}
 	
 	draw(camera)
 	{
-		this.forEachChunk((chunk, i, x, y, z, ox, oy, oz) => {
-			chunk.draw([ox, oy, oz], camera, this.sun);
+		this.skybox.draw(camera);
+		this.ground.draw(camera);
+		
+		this.forEachChunk(({c, ox, oy, oz}) => {
+			c.draw([ox, oy, oz], camera, this.sun.getRayDir());
 		});
 	}
 }

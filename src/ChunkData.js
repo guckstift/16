@@ -1,4 +1,8 @@
-import {CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
+import {
+	CHUNK_SIZE, localBlockIndex, localBlockX, localBlockY, localBlockZ
+} from "./worldmetrics.js";
+
+import {getBlockId, getBlockSlope} from "./blocks.js";
 
 export class ChunkData
 {
@@ -48,23 +52,34 @@ export class ChunkData
 		return this.modified;
 	}
 	
-	forEach(fn)
+	forEachBlock(fn)
 	{
-		intervalForEachBlock(this.data, (v, i, id, sl) => {
-			fn(v, i, id, sl);
+		intervalForEachBlock(this.data, ({b, i}) => {
+			fn({
+				b, i,
+				id: getBlockId(b),
+				sl: getBlockSlope(b),
+				x:  localBlockX(i),
+				y:  localBlockY(i),
+				z:  localBlockZ(i),
+			});
 		});
 	}
 	
 	unpackTo(buf)
 	{
-		intervalForEach(this.data, (iv, is, ie) => {
-			buf.fill(iv, is, ie);
+		intervalForEach(this.data, ({b, s, e}) => {
+			buf.fill(b, s, e);
 		});
 	}
 	
 	update()
 	{
+		let modified = this.modified;
+		
 		this.modified = false;
+		
+		return modified;
 	}
 	
 	setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
@@ -185,26 +200,24 @@ function intervalPlace(data, i, id = undefined, sl = undefined, addsl = false)
 
 function intervalForEach(data, fn)
 {
-	let len = data.length;
-	let ii  = 0;
-	let is  = 0;
-	let iv  = 0;
-	let ie  = 0;
-	
-	while(ii < len) {
-		is  = data[ii];
-		iv  = data[ii + 1];
-		ii += 2;
-		ie  = ii < len ? data[ii] : CHUNK_SIZE;
-		fn(iv, is, ie);
+	for(
+		let ii=0, ii2=2, len = data.length;
+		ii < len;
+		ii += 2, ii2 += 2
+	) {
+		fn({
+			b: data[ii + 1],
+			s: data[ii],
+			e: ii2 < len ? data[ii2] : CHUNK_SIZE
+		});
 	}
 }
 
 function intervalForEachBlock(data, fn)
 {
-	intervalForEach(data, (iv, is, ie) => {
-		for(let i = is; i < ie; i++) {
-			fn(iv, i, iv & 0xff, iv >> 8 & 0xf);
+	intervalForEach(data, ({b, s, e}) => {
+		for(let i = s; i < e; i++) {
+			fn({b, i});
 		}
 	});
 }

@@ -2,15 +2,16 @@ import {Camera} from "../gluck/Camera.js";
 
 export class BodyCamera extends Camera
 {
-	constructor()
+	constructor(body)
 	{
 		super();
+		
+		this.body = body;
 	}
 	
-	setFromBody(body)
+	update()
 	{
-		this.setPos(body.pos);
-		this.pos[1] += body.eyehight;
-		this.setAngle(body.xangle, body.yangle);
+		this.setFromMovable(this.body);
+		this.pos[1] += this.body.getEyeHeight();
 	}
 }

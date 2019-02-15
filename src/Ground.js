@@ -2,9 +2,10 @@ import {VertexLayout} from "../gluck/VertexLayout.js";
 
 export class Ground
 {
-	constructor(display)
+	constructor(display, sun)
 	{
 		this.display = display;
+		this.sun     = sun;
 		this.tex     = display.getTexture("gfx/atlas.png");
 		this.buf     = display.Buffer("static", vertLayout, verts);
 		this.shader  = display.getShader("ground", vertSrc, fragSrc);
@@ -19,8 +20,8 @@ export class Ground
 		shader.texture("tex",     this.tex);
 		shader.uniform("proj",    camera.getProjection());
 		shader.uniform("view",    camera.getView());
-		shader.uniform("model",   camera.getModel([pos[0], 0, pos[2]]));
-		shader.uniform("sun",     sun);
+		shader.uniform("model",   camera.getModel([camera.pos[0], 0, camera.pos[2]]));
+		shader.uniform("sun",     this.sun.getRayDir());
 		shader.uniform("diff",    0.5);
 		shader.uniform("fogCol",  [0.75, 0.875, 1.0]);
 		shader.uniform("fogDist", 16);
@@ -76,6 +77,7 @@ const vertSrc = `
 const fragSrc = `
 	uniform sampler2D atlas;
 	uniform vec3 fogCol;
+	uniform vec3 sun;
 	uniform float fogDist;
 	
 	varying vec4 vMpos;
@@ -97,6 +99,6 @@ const fragSrc = `
 		gl_FragColor      = texture2D(atlas, uv);
 		gl_FragColor.rgb *= vCoef;
 		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * fogCol;
+		gl_FragColor.rgb += (1.0 - fog) * fogCol * max(0.0, -sun.y);
 	}
 `;

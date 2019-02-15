@@ -24,6 +24,16 @@ const blocks = [
 	},
 ];
 
+export function getBlockId(block)
+{
+	return block & 0xff;
+}
+
+export function getBlockSlope(block)
+{
+	return block >> 8 & 0xf;
+}
+
 export function getBlockInfo(id)
 {
 	return blocks[id];

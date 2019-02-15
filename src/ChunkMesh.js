@@ -1,12 +1,15 @@
+import {ChunkData} from "./ChunkData.js";
 import {VertexLayout} from "../gluck/VertexLayout.js";
 import * as vector from "../gluck/vector.js";
 import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
 import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
 
-export class ChunkMesh
+export class ChunkMesh extends ChunkData
 {
 	constructor()
 	{
+		super();
+		
 		this.verts   = new Uint8Array(0);
 		this.vertnum = 0;
 	}
@@ -23,16 +26,20 @@ export class ChunkMesh
 	
 	update(chunkVicinity)
 	{
-		let chunk = chunkVicinity[13];
+		if(super.update()) {
+			if(this.isUniform() && !isVisibleBlock(this.getUniform())) {
+				this.verts   = new Uint8Array(0);
+				this.vertnum = 0;
+			}
+			else {
+				this.verts   = createMesh(chunkVicinity);
+				this.vertnum = getLastVertNum();
+			}
+			
+			return true;
+		}
 		
-		if(!chunk || chunk.isUniform() && !isVisibleBlock(chunk.getUniform())) {
-			this.data    = new Uint8Array(0);
-			this.vertnum = 0;
-		}
-		else {
-			this.verts   = createMesh(chunkVicinity);
-			this.vertnum = getLastVertNum();
-		}
+		return false;
 	}
 }
 

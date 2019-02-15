@@ -1,18 +1,26 @@
-import {CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
+import {ChunkMesh, CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
 
-export class ChunkDrawable
+export class ChunkDrawable extends ChunkMesh
 {
 	constructor(display)
 	{
+		super(display);
+		
 		this.display = display;
 		this.buf     = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
 		this.shader  = display.getShader("chunk", vertSrc, fragSrc);
 		this.atlas   = display.getTexture("gfx/atlas.png");
 	}
 	
-	update(mesh)
+	update(chunkVicinity)
 	{
-		this.buf.update(mesh.getVerts());
+		if(super.update(chunkVicinity)) {
+			this.buf.update(this.getVerts());
+			
+			return true;
+		}
+		
+		return false;
 	}
 	
 	draw(pos, camera, sun)
@@ -91,6 +99,7 @@ const vertSrc = `
 
 const fragSrc = `
 	uniform sampler2D atlas;
+	uniform vec3 sun;
 	
 	varying vec3 vTranslatedVert;
 	varying vec2 uvOffset;
@@ -106,6 +115,6 @@ const fragSrc = `
 		gl_FragColor      = texture2D(atlas, uv);
 		gl_FragColor.rgb *= coef;
 		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0);
+		gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
 	}
 `;

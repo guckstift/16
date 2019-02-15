@@ -23,6 +23,11 @@ export class Body extends Movable
 		this.globoxmax = vector.create();
 	}
 	
+	getEyeHeight()
+	{
+		return this.eyehight;
+	}
+	
 	move(vel, delta)
 	{
 		vector.scale(vel, delta, deltavel);

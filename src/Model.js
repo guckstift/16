@@ -51,7 +51,7 @@ const vertSrc = `
 	{
 		vTransPos   = view * model * vec4(pos, 1.0);
 		gl_Position = proj * vTransPos;
-		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, -sun));
+		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
 		vUv         = uv;
 	}
 `;
@@ -59,6 +59,7 @@ const vertSrc = `
 const fragSrc = `
 	uniform sampler2D tex;
 	uniform vec3 fogCol;
+	uniform vec3 sun;
 	uniform float fogDist;
 	
 	varying vec4 vTransPos;
@@ -77,6 +78,6 @@ const fragSrc = `
 		
 		gl_FragColor.rgb *= vCoef;
 		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * fogCol;
+		gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
 	}
 `;
