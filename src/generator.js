@@ -42,8 +42,8 @@ function getHeight(x, z)
 
 function generateBaseTerrain(world)
 {
-	world.forEachChunk(({c, ox, oy, oz}) => {
-		c.forEachBlock(({i, x, y, z}) => {
+	world.forEachChunk(({chunk, ox, oy, oz}) => {
+		chunk.forEachBlock(({i, x, y, z}) => {
 			let gx = ox + x;
 			let gy = oy + y;
 			let gz = oz + z;
@@ -60,13 +60,13 @@ function generateBaseTerrain(world)
 			}
 		});
 		
-		c.packFrom(chunkbuf);
+		chunk.packFrom(chunkbuf);
 	});
 }
 
 function generateSlopes(world)
 {
-	world.forEachBlock(({x, y, z}) => {
+	world.forEachBlockPos(({x, y, z}) => {
 		let h = getHeight(x, z);
 		
 		if(y - 1 === h

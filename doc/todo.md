@@ -31,3 +31,5 @@
 	-> was a bug in ChunkData: intervalPlace()
 * make a slope block
 * collide and slide with slope block
+* bug: lots of slopes missing [70.0534761659801, 28, 25.381044451147318]
+	-> fixing block loop within slopes are modified in generator

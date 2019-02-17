@@ -1,5 +1,5 @@
 import {
-	CHUNK_SIZE, localBlockIndex, localBlockX, localBlockY, localBlockZ
+	CHUNK_SIZE, CHUNK_WIDTH, localBlockIndex, localBlockX, localBlockY, localBlockZ
 } from "./worldmetrics.js";
 
 import {getBlockId, getBlockSlope} from "./blocks.js";
@@ -54,22 +54,33 @@ export class ChunkData
 	
 	forEachBlock(fn)
 	{
-		intervalForEachBlock(this.data, ({b, i}) => {
+		intervalForEachBlock(this.data, ({block, i}) => {
 			fn({
-				b, i,
-				id: getBlockId(b),
-				sl: getBlockSlope(b),
-				x:  localBlockX(i),
-				y:  localBlockY(i),
-				z:  localBlockZ(i),
+				block, i,
+				id:    getBlockId(block),
+				slope: getBlockSlope(block),
+				x:     localBlockX(i),
+				y:     localBlockY(i),
+				z:     localBlockZ(i),
 			});
 		});
 	}
 	
+	forEachBlockPos(fn)
+	{
+		for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
+			for(let y=0; y < CHUNK_WIDTH; y++) {
+				for(let x=0; x < CHUNK_WIDTH; x++, i++) {
+					fn({x, y, z, i});
+				}
+			}
+		}
+	}
+	
 	unpackTo(buf)
 	{
-		intervalForEach(this.data, ({b, s, e}) => {
-			buf.fill(b, s, e);
+		intervalForEach(this.data, ({block, start, end}) => {
+			buf.fill(block, start, end);
 		});
 	}
 	
@@ -200,24 +211,20 @@ function intervalPlace(data, i, id = undefined, sl = undefined, addsl = false)
 
 function intervalForEach(data, fn)
 {
-	for(
-		let ii=0, ii2=2, len = data.length;
-		ii < len;
-		ii += 2, ii2 += 2
-	) {
+	for(let i=0, i2=2, len = data.length; i < len; i += 2, i2 += 2) {
 		fn({
-			b: data[ii + 1],
-			s: data[ii],
-			e: ii2 < len ? data[ii2] : CHUNK_SIZE
+			block: data[i + 1],
+			start: data[i],
+			end:   i2 < len ? data[i2] : CHUNK_SIZE,
 		});
 	}
 }
 
 function intervalForEachBlock(data, fn)
 {
-	intervalForEach(data, ({b, s, e}) => {
-		for(let i = s; i < e; i++) {
-			fn({b, i});
+	intervalForEach(data, ({block, start, end}) => {
+		for(let i = start; i < end; i++) {
+			fn({block, i});
 		}
 	});
 }
