@@ -14,16 +14,19 @@ export class World
 {
 	constructor(display)
 	{
-		this.isSolidBlock  = this.isSolidBlock.bind(this);
-		this.getBlockSlope = this.getBlockSlope.bind(this);
-		
 		this.chunkVicinity = Array(3 ** 3);
 		this.chunks        = Array(WORLD_CHUNKS_SIZE);
-		this.emptyChunk    = new ChunkDrawable(display);
 		this.sun           = new Sun(10, 45);
-		this.skybox        = new Skybox(display, this.sun);
-		this.ground        = new Ground(display, this.sun);
-		this.shadowmap     = new ShadowMap(display, this.sun);
+		this.emptyChunk    = new ChunkDrawable(display);
+		
+		if(display) {
+			this.getChunkVicinity = this.getChunkVicinity.bind(this);
+			this.isSolidBlock  = this.isSolidBlock.bind(this);
+			this.getBlockSlope = this.getBlockSlope.bind(this);
+			this.skybox        = new Skybox(display, this.sun);
+			this.ground        = new Ground(display, this.sun);
+			this.shadowmap     = new ShadowMap(display, this.sun);
+		}
 		
 		this.forEachChunk(({i}) => {
 			this.chunks[i] = new ChunkDrawable(display);
@@ -173,10 +176,17 @@ export class World
 		return boxcast(boxmin, boxmax, vec, this.isSolidBlock, this.getBlockSlope);
 	}
 	
+	deserialize(plain)
+	{
+		this.forEachChunk(({chunk, i}) => {
+			chunk.deserialize(plain.chunks[i]);
+		});
+	}
+	
 	update(delta)
 	{
 		this.forEachChunk(({chunk, x, y, z}) => {
-			chunk.update(this.getChunkVicinity(x, y, z));
+			chunk.update(this.getChunkVicinity, x, y, z);
 		});
 		
 		this.sun.update(delta);

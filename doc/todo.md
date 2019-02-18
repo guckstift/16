@@ -1,7 +1,6 @@
 # TODO
 
-* async generation of chunks with worker
-* model batching and instancing
+* generate trees on map
 * create ocean layer
 * implement shadow mapping
 * carve caves into landscape
@@ -33,3 +32,7 @@
 * collide and slide with slope block
 * bug: lots of slopes missing [70.0534761659801, 28, 25.381044451147318]
 	-> fixing block loop within slopes are modified in generator
+* async meshing of chunks with worker
+* model batching and instancing
+* async generation of world with worker
+

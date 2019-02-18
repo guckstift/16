@@ -24,7 +24,7 @@ export class ChunkMesh extends ChunkData
 		return this.vertnum;
 	}
 	
-	update(chunkVicinity, fn)
+	update(getChunkVicinity, x, y, z, fn)
 	{
 		if(super.update()) {
 			if(this.isUniform() && !isVisibleBlock(this.getUniform())) {
@@ -32,7 +32,7 @@ export class ChunkMesh extends ChunkData
 				this.vertnum = 0;
 			}
 			else {
-				createMesh(chunkVicinity, (verts, vertnum) => {
+				createMesh(getChunkVicinity(x, y, z), (verts, vertnum) => {
 					this.verts   = verts;
 					this.vertnum = vertnum;
 					fn();

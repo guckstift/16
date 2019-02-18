@@ -6,13 +6,14 @@ export class Model
 {
 	constructor(display, data, indices, texfile)
 	{
-		this.buf    = display.Buffer("static", layout, data);
-		this.ibuf   = display.Buffer("static", "index", indices);
-		this.shader = display.getShader("model", vertSrc, fragSrc);
-		this.tex    = display.getTexture(texfile);
+		this.display = display;
+		this.buf     = display.Buffer("static", layout, data);
+		this.ibuf    = display.Buffer("static", "index", indices);
+		this.shader  = display.getShader("model", modelVertSrc, modelFragSrc);
+		this.tex     = display.getTexture(texfile);
 	}
 	
-	draw(pos, camera, sun)
+	draw(pos, camera, sun, instances = null)
 	{
 		let shader = this.shader;
 		let buf    = this.buf;
@@ -28,18 +29,27 @@ export class Model
 		shader.uniform("fogDist", 16);
 		shader.indices(this.ibuf);
 		shader.buffer(buf);
+		
+		if(instances) {
+			shader.instance("ipos", instances);
+		}
+		else {
+			shader.constattrib("ipos", [0,0,0]);
+		}
+		
 		shader.triangles();
 	}
 }
 
-const vertSrc = `
+export const modelVertSrc = `
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
 	uniform vec3 sun;
 	uniform float diff;
 	
-	attribute vec4 pos;
+	attribute vec3 ipos;
+	attribute vec3 pos;
 	attribute vec3 norm;
 	attribute vec2 uv;
 	
@@ -49,14 +59,14 @@ const vertSrc = `
 	
 	void main()
 	{
-		vTransPos   = view * model * pos;
+		vTransPos   = view * model * vec4(ipos + pos, 1);
 		gl_Position = proj * vTransPos;
 		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
 		vUv         = uv;
 	}
 `;
 
-const fragSrc = `
+export const modelFragSrc = `
 	uniform sampler2D tex;
 	uniform vec3 fogCol;
 	uniform vec3 sun;

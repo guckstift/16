@@ -118,6 +118,12 @@ export class ChunkData
 			intervalPlace(this.data, i, v);
 		});
 	}
+	
+	deserialize(plain)
+	{
+		this.data     = plain.data;
+		this.modified = true;
+	}
 }
 
 function intervalIndex(data, i)

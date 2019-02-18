@@ -30,6 +30,7 @@ export class Shader
 		}
 		
 		this.gl      = gl;
+		this.glia    = display.glia;
 		this.prog    = prog;
 		this.vars    = {};
 		this.reset();
@@ -39,6 +40,7 @@ export class Shader
 	{
 		this.texunit = 0;
 		this.verts   = 2**32 - 1;
+		this.instnum = null;
 		this.ibuf    = null;
 	}
 	
@@ -74,9 +76,34 @@ export class Shader
 		this.ibuf = buffer;
 	}
 	
-	attrib(name, buffer, field)
+	constattrib(name, value)
 	{
 		let gl   = this.gl;
+		let glia = this.glia;
+		let loca = this.getVar(name);
+		
+		if(loca !== undefined) {
+			gl.disableVertexAttribArray(loca);
+			
+			if(typeof value === "number") {
+				gl.vertexAttrib1f(loca, value);
+			}
+			else if(value.length === 2) {
+				gl.vertexAttrib2fv(loca, value);
+			}
+			else if(value.length === 3) {
+				gl.vertexAttrib3fv(loca, value);
+			}
+			else if(value.length === 4) {
+				gl.vertexAttrib4f(loca, ...value);
+			}
+		}
+	}
+	
+	attrib(name, buffer, field, perInstance = false)
+	{
+		let gl   = this.gl;
+		let glia = this.glia;
 		let loca = this.getVar(name);
 		
 		field = field || name;
@@ -94,8 +121,23 @@ export class Shader
 				buffer.getOffset(field)
 			);
 			
-			this.verts = Math.min(this.verts, buffer.getVerts());
+			if(perInstance) {
+				glia.vertexAttribDivisorANGLE(loca, 1);
+				
+				this.instnum = this.instnum === null
+					? buffer.getVerts()
+					: Math.min(this.instnum, buffer.getVerts());
+			}
+			else {
+				glia.vertexAttribDivisorANGLE(loca, 0);
+				this.verts = Math.min(this.verts, buffer.getVerts());
+			}
 		}
+	}
+	
+	instance(name, buffer, field)
+	{
+		this.attrib(name, buffer, field, true);
 	}
 	
 	buffer(buffer)
@@ -141,15 +183,32 @@ export class Shader
 	triangles()
 	{
 		let gl = this.gl;
+		let glia = this.glia;
 		
-		if(this.ibuf) {
-			if(this.ibuf.getVerts() > 0) {
-				gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+		if(this.instnum === null) {
+			if(this.ibuf) {
+				if(this.ibuf.getVerts() > 0) {
+					gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+				}
+			}
+			else {
+				if(this.verts > 0) {
+					gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+				}
 			}
 		}
 		else {
-			if(this.verts > 0) {
-				gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+			if(this.ibuf) {
+				if(this.ibuf.getVerts() > 0) {
+					glia.drawElementsInstancedANGLE(
+						gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0, this.instnum
+					);
+				}
+			}
+			else {
+				if(this.verts > 0) {
+					glia.drawArraysInstancedANGLE(gl.TRIANGLES, 0, this.verts, this.instnum);
+				}
 			}
 		}
 	}

@@ -25,6 +25,7 @@ export class Display extends Dom
 		this.canvas      = canvas;
 		this.gl          = gl;
 		this.gldt        = gl.getExtension("WEBGL_depth_texture");
+		this.glia        = gl.getExtension("ANGLE_instanced_arrays");
 		this.frame       = this.frame.bind(this);
 		this.defaultTex  = gl.createTexture();
 		this.framebuf    = gl.createFramebuffer();

@@ -7,21 +7,26 @@ export class ChunkDrawable extends ChunkMesh
 		super(display);
 		
 		this.display = display;
-		this.buf     = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
-		this.shader  = display.getShader("chunk", vertSrc, fragSrc);
-		this.atlas   = display.getTexture("gfx/atlas.png");
+		
+		if(display) {
+			this.buf    = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
+			this.shader = display.getShader("chunk", vertSrc, fragSrc);
+			this.atlas  = display.getTexture("gfx/atlas.png");
+		}
 	}
 	
-	update(chunkVicinity)
+	update(getChunkVicinity, x, y, z)
 	{
-		super.update(chunkVicinity, () => {
-			this.buf.update(this.getVerts());
+		super.update(getChunkVicinity, x, y, z, () => {
+			if(this.display) {
+				this.buf.update(this.getVerts());
+			}
 		});
 	}
 	
 	draw(pos, camera, sun)
 	{
-		if(this.buf.getSize() > 0) {
+		if(this.display && this.buf.getSize() > 0) {
 			let shader = this.shader;
 			let buf    = this.buf;
 			let gl     = this.display.gl;
