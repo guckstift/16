@@ -16,6 +16,7 @@ export class Ground
 		let gl     = this.display.gl;
 		let shader = this.shader;
 		
+		gl.disable(gl.CULL_FACE);
 		shader.use();
 		shader.texture("tex",     this.tex);
 		shader.uniform("proj",    camera.getProjection());
@@ -27,6 +28,7 @@ export class Ground
 		shader.uniform("fogDist", 16);
 		shader.buffer(this.buf);
 		shader.triangles();
+		gl.enable(gl.CULL_FACE);
 	}
 }
 

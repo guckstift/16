@@ -39,7 +39,7 @@ const vertSrc = `
 	uniform vec3 sun;
 	uniform float diff;
 	
-	attribute vec3 pos;
+	attribute vec4 pos;
 	attribute vec3 norm;
 	attribute vec2 uv;
 	
@@ -49,7 +49,7 @@ const vertSrc = `
 	
 	void main()
 	{
-		vTransPos   = view * model * vec4(pos, 1.0);
+		vTransPos   = view * model * pos;
 		gl_Position = proj * vTransPos;
 		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
 		vUv         = uv;

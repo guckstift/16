@@ -4,6 +4,7 @@ import {getBlockInfo, isSolidBlock, isVisibleBlock, getBlockTile} from "./blocks
 import {Sun} from "./Sun.js";
 import {Skybox} from "./Skybox.js";
 import {Ground} from "./Ground.js";
+import {ShadowMap} from "./ShadowMap.js";
 
 import {
 	WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
@@ -19,9 +20,10 @@ export class World
 		this.chunkVicinity = Array(3 ** 3);
 		this.chunks        = Array(WORLD_CHUNKS_SIZE);
 		this.emptyChunk    = new ChunkDrawable(display);
-		this.sun           = new Sun(5);
+		this.sun           = new Sun(10, 45);
 		this.skybox        = new Skybox(display, this.sun);
 		this.ground        = new Ground(display, this.sun);
+		this.shadowmap     = new ShadowMap(display, this.sun);
 		
 		this.forEachChunk(({i}) => {
 			this.chunks[i] = new ChunkDrawable(display);
@@ -95,7 +97,7 @@ export class World
 	
 	forEachChunk(fn)
 	{
-		for(let z=0, i=0, oz=0; z < WORLD_CHUNKS_WIDTH; z++) {
+		for(let z=0, i=0; z < WORLD_CHUNKS_WIDTH; z++) {
 			let oz = z * CHUNK_WIDTH;
 			
 			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
@@ -105,7 +107,7 @@ export class World
 					let ox = x * CHUNK_WIDTH;
 					
 					fn({
-						c: this.chunks[i],
+						chunk: this.chunks[i],
 						i, x, y, z, ox, oy, oz,
 					});
 				}
@@ -115,10 +117,27 @@ export class World
 	
 	forEachBlock(fn)
 	{
-		this.forEachChunk(({c, ox, oy, oz}) => {
-			c.forEachBlock(({b, id, sl, x, y, z}) => {
+		this.forEachChunk(({chunk, ox, oy, oz}) => {
+			chunk.forEachBlock(({block, i, id, slope, x, y, z}) => {
 				fn({
-					c, b, id, sl,
+					chunk, block, id, slope,
+					x:  ox + x,
+					y:  oy + y,
+					z:  oz + z,
+					lx: x,
+					ly: y,
+					lz: z,
+				});
+			});
+		});
+	}
+	
+	forEachBlockPos(fn)
+	{
+		this.forEachChunk(({chunk, ox, oy, oz}) => {
+			chunk.forEachBlockPos(({x, y, z, i}) => {
+				fn({
+					chunk,
 					x:  ox + x,
 					y:  oy + y,
 					z:  oz + z,
@@ -156,8 +175,8 @@ export class World
 	
 	update(delta)
 	{
-		this.forEachChunk(({c, x, y, z}) => {
-			c.update(this.getChunkVicinity(x, y, z));
+		this.forEachChunk(({chunk, x, y, z}) => {
+			chunk.update(this.getChunkVicinity(x, y, z));
 		});
 		
 		this.sun.update(delta);
@@ -165,11 +184,14 @@ export class World
 	
 	draw(camera)
 	{
+		this.shadowmap.beginDraw();
+		this.shadowmap.endDraw();
+		
 		this.skybox.draw(camera);
 		this.ground.draw(camera);
 		
-		this.forEachChunk(({c, ox, oy, oz}) => {
-			c.draw([ox, oy, oz], camera, this.sun.getRayDir());
+		this.forEachChunk(({chunk, ox, oy, oz}) => {
+			chunk.draw([ox, oy, oz], camera, this.sun.getRayDir());
 		});
 	}
 }

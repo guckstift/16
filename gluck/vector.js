@@ -106,7 +106,7 @@ export function dist(a, b)
 
 export function normalize(v, out = new Float32Array(3))
 {
-	return scale(v, 1 / length(v));
+	return scale(v, 1 / length(v), out);
 }
 
 export function add(a, b, out = new Float32Array(3))
