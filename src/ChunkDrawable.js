@@ -14,13 +14,9 @@ export class ChunkDrawable extends ChunkMesh
 	
 	update(chunkVicinity)
 	{
-		if(super.update(chunkVicinity)) {
+		super.update(chunkVicinity, () => {
 			this.buf.update(this.getVerts());
-			
-			return true;
-		}
-		
-		return false;
+		});
 	}
 	
 	draw(pos, camera, sun)

@@ -24,7 +24,7 @@ export class ChunkMesh extends ChunkData
 		return this.vertnum;
 	}
 	
-	update(chunkVicinity)
+	update(chunkVicinity, fn)
 	{
 		if(super.update()) {
 			if(this.isUniform() && !isVisibleBlock(this.getUniform())) {
@@ -32,14 +32,13 @@ export class ChunkMesh extends ChunkData
 				this.vertnum = 0;
 			}
 			else {
-				this.verts   = createMesh(chunkVicinity);
-				this.vertnum = getLastVertNum();
+				createMesh(chunkVicinity, (verts, vertnum) => {
+					this.verts   = verts;
+					this.vertnum = vertnum;
+					fn();
+				});
 			}
-			
-			return true;
 		}
-		
-		return false;
 	}
 }
 
@@ -47,6 +46,59 @@ export let CHUNK_VERT_LAYOUT = new VertexLayout(
 	"ubyte", ["vert", 3], ["occl", 1], ["normal", 3], ["tile", 1]
 );
 
+let dataCacheMatrix = null;
+let dataBufMatrix   = null;
+let worker          = null;
+let nextCbId        = null;
+let callbacks       = undefined;
+
+if(typeof window === "object") {
+	dataCacheMatrix = [
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+	];
+
+	dataBufMatrix = dataCacheMatrix.map(x => x.buffer);
+	worker        = new Worker("./bundles/mesher.js");
+	nextCbId      = 0;
+	callbacks     = {};
+
+	worker.onmessage = e => {
+		let fn = callbacks[e.data.cbId];
+		
+		delete callbacks[e.data.cbId];
+		
+		fn(e.data.verts, e.data.vertnum);
+	};
+}
+
+function createMesh(chunkVicinity, fn)
+{
+	let cbId = nextCbId++; 
+	
+	callbacks[cbId] = fn;
+	
+	unpackChunkData(chunkVicinity);
+	worker.postMessage({dcm: dataCacheMatrix, cbId: cbId});//, dataBufMatrix);
+}
+
+function unpackChunkData(chunkVicinity)
+{
+	for(let i = 0; i < 27; i++) {
+		chunkVicinity[i].unpackTo(dataCacheMatrix[i]);
+	}
+}
+
+/*
 let VERT_SIZE = CHUNK_VERT_LAYOUT.getSize();
 let QUAD_SIZE = 2 * 3 * VERT_SIZE;
 
@@ -615,3 +667,4 @@ function addQuad(p, q, ax0,ax1, oc0,oc1,oc2,oc3, nx,ny,nz, tile, flip)
 	
 	meshVertCount += 6;
 }
+*/
