@@ -9,6 +9,7 @@ export class ChunkData
 	constructor()
 	{
 		this.data     = [0, 0];
+		this.objs     = {};
 		this.modified = false;
 	}
 	

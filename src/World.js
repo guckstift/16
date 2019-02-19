@@ -5,6 +5,9 @@ import {Sun} from "./Sun.js";
 import {Skybox} from "./Skybox.js";
 import {Ground} from "./Ground.js";
 import {ShadowMap} from "./ShadowMap.js";
+import {Model} from "./Model.js";
+import {ModelBatch} from "./ModelBatch.js";
+import {tree1} from "../models/tree1.js";
 
 import {
 	WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
@@ -18,14 +21,19 @@ export class World
 		this.chunks        = Array(WORLD_CHUNKS_SIZE);
 		this.sun           = new Sun(10, 45);
 		this.emptyChunk    = new ChunkDrawable(display);
+		this.trees         = [];
 		
 		if(display) {
 			this.getChunkVicinity = this.getChunkVicinity.bind(this);
-			this.isSolidBlock  = this.isSolidBlock.bind(this);
-			this.getBlockSlope = this.getBlockSlope.bind(this);
-			this.skybox        = new Skybox(display, this.sun);
-			this.ground        = new Ground(display, this.sun);
-			this.shadowmap     = new ShadowMap(display, this.sun);
+			this.isSolidBlock     = this.isSolidBlock.bind(this);
+			this.getBlockSlope    = this.getBlockSlope.bind(this);
+			this.skybox           = new Skybox(display, this.sun);
+			this.ground           = new Ground(display, this.sun);
+			this.shadowmap        = new ShadowMap(display, this.sun);
+			
+			this.models = new ModelBatch(
+				new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
+			);
 		}
 		
 		this.forEachChunk(({i}) => {
@@ -178,6 +186,9 @@ export class World
 	
 	deserialize(plain)
 	{
+		this.trees = plain.trees;
+		this.models.update(this.trees);
+		
 		this.forEachChunk(({chunk, i}) => {
 			chunk.deserialize(plain.chunks[i]);
 		});
@@ -203,5 +214,7 @@ export class World
 		this.forEachChunk(({chunk, ox, oy, oz}) => {
 			chunk.draw([ox, oy, oz], camera, this.sun.getRayDir());
 		});
+		
+		this.models.draw(camera, this.sun.getSkyDir());
 	}
 }

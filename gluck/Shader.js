@@ -147,6 +147,13 @@ export class Shader
 		});
 	}
 	
+	instancebuffer(buffer)
+	{
+		buffer.getNames().forEach(name => {
+			this.instance(name, buffer);
+		});
+	}
+	
 	uniform(name, value)
 	{
 		if(typeof value === "number") {

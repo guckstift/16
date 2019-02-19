@@ -31,10 +31,10 @@ export class Model
 		shader.buffer(buf);
 		
 		if(instances) {
-			shader.instance("ipos", instances);
+			shader.instancebuffer(instances);
 		}
 		else {
-			shader.constattrib("ipos", [0,0,0]);
+			shader.constattrib("ipos", pos);
 		}
 		
 		shader.triangles();

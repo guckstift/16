@@ -72,7 +72,7 @@ function getCachedBlockId(x, y, z)
 
 function isOccluding(block)
 {
-	return isSolidBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
+	return isVisibleBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
 }
 
 function getSlopeNormalPattern(sl)
@@ -181,7 +181,7 @@ function computeFaces()
 				backFaces[i]   = 0;
 				frontFaces[i]  = 0;
 				
-				if(isSolidBlock(id)) {
+				if(isVisibleBlock(id)) {
 					if(slope === 0) {
 						computeFace(x, y, z, +1, 0, 0, id, 0, rightFaces);
 						computeFace(x, y, z, -1, 0, 0, id, 1, leftFaces);

@@ -31,6 +31,9 @@ export class Display extends Dom
 		this.framebuf    = gl.createFramebuffer();
 		this.last        = 0;
 		this.delta       = 0;
+		this.frameAccu   = 0;
+		this.timeAccu    = 0;
+		this.fps         = 0;
 
 		gl.bindTexture(gl.TEXTURE_2D, this.defaultTex);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -54,6 +57,16 @@ export class Display extends Dom
 		this.last  = now;
 		this.trigger("frame", {delta: this.delta});
 		requestAnimationFrame(this.frame);
+		
+		this.frameAccu ++;
+		this.timeAccu += this.delta;
+		
+		if(this.timeAccu >= 1) {
+			this.fps       = this.frameAccu;
+			console.log(this.fps);
+			this.timeAccu -= 1;
+			this.frameAccu = 0;
+		}
 	}
 	
 	resize(w, h)

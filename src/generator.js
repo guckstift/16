@@ -66,6 +66,8 @@ else {
 		console.log("generateSlopes time:", delta);
 		now = performance.now();
 		
+		//generateTrees(world);
+		
 		return world;
 	}
 
@@ -73,7 +75,9 @@ else {
 	{
 		for(let z=0, i=0; z < WORLD_WIDTH; z++) {
 			for(let x=0; x < WORLD_WIDTH; x++, i++) {
-				heightmap[i] = Math.floor(heightlayers.reduce((a,c) => a + c.sample(x, z), 0));
+				heightmap[i] = Math.floor(
+					heightlayers.reduce((a,c) => a + c.sample(x, z), 0)
+				);
 			}
 		}
 	}
@@ -97,6 +101,12 @@ else {
 				}
 				else if(gy === h) {
 					chunkbuf[i] = 3;
+				}
+				else if(gy === h + 1 && Math.random() < 0.001 * h) {
+					chunkbuf[i] = 4;
+					world.trees.push(gx);
+					world.trees.push(gy);
+					world.trees.push(gz);
 				}
 				else {
 					chunkbuf[i] = 0;

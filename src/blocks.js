@@ -22,6 +22,11 @@ const blocks = [
 		visible: true,
 		tiles: [3, 3, 2, 1, 3, 3],
 	},
+	{
+		name: "object",
+		solid: true,
+		visible: false,
+	},
 ];
 
 export function getBlockId(block)

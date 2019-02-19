@@ -45,6 +45,11 @@
 			visible: true,
 			tiles: [3, 3, 2, 1, 3, 3],
 		},
+		{
+			name: "object",
+			solid: true,
+			visible: false,
+		},
 	];
 
 	function getBlockInfo(id)
@@ -52,9 +57,9 @@
 		return blocks[id];
 	}
 
-	function isSolidBlock(id)
+	function isVisibleBlock(id)
 	{
-		return getBlockInfo(id).solid;
+		return getBlockInfo(id).visible;
 	}
 
 	function getBlockTile(id, fid)
@@ -807,7 +812,7 @@
 
 	function isOccluding(block)
 	{
-		return isSolidBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
+		return isVisibleBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
 	}
 
 	function getSlopeNormalPattern(sl)
@@ -909,7 +914,7 @@
 					backFaces[i]   = 0;
 					frontFaces[i]  = 0;
 					
-					if(isSolidBlock(id)) {
+					if(isVisibleBlock(id)) {
 						if(slope === 0) {
 							computeFace(x, y, z, +1, 0, 0, id, 0, rightFaces);
 							computeFace(x, y, z, -1, 0, 0, id, 1, leftFaces);

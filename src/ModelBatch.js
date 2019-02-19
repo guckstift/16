@@ -22,9 +22,10 @@ export class ModelBatch
 		this.modified = true;
 	}
 	
-	update()
+	update(data)
 	{
-		if(this.modified) {
+		if(data || this.modified) {
+			this.data = data;
 			this.buf.update(this.data);
 			this.modified = false;
 		}
@@ -32,7 +33,7 @@ export class ModelBatch
 	
 	draw(camera, sun)
 	{
-		this.model.draw([0, 0, 0], camera, sun, this.buf);
+		this.model.draw([0.5, 0, 0.5], camera, sun, this.buf);
 	}
 }
 
