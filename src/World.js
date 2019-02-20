@@ -19,17 +19,27 @@ export class World
 	{
 		this.chunkVicinity = Array(3 ** 3);
 		this.chunks        = Array(WORLD_CHUNKS_SIZE);
-		this.sun           = new Sun(10, 45);
+		this.sun           = new Sun(1, 0);
 		this.emptyChunk    = new ChunkDrawable(display);
 		this.trees         = [];
-		
+				
 		if(display) {
 			this.getChunkVicinity = this.getChunkVicinity.bind(this);
 			this.isSolidBlock     = this.isSolidBlock.bind(this);
 			this.getBlockSlope    = this.getBlockSlope.bind(this);
 			this.skybox           = new Skybox(display, this.sun);
 			this.ground           = new Ground(display, this.sun);
-			this.shadowmap        = new ShadowMap(display, this.sun);
+			this.shadowmapTotal   = new ShadowMap(display, this.sun, 444);
+			this.shadowmapDetail  = new ShadowMap(display, this.sun, 16);
+			
+			this.shadowmapTotal.camera.setPos([128, 128, 128]);
+			
+			this.quad = new Model(display, [
+				0,0,0,  0,0,-1,  0,0,
+				1,0,0,  0,0,-1,  1,0,
+				0,1,0,  0,0,-1,  0,1,
+				1,1,0,  0,0,-1,  1,1,
+			], [0,1,2, 2,1,3], this.shadowmapDetail.colortex);
 			
 			this.models = new ModelBatch(
 				new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
@@ -205,14 +215,32 @@ export class World
 	
 	draw(camera)
 	{
-		this.shadowmap.beginDraw();
-		this.shadowmap.endDraw();
+		this.shadowmapTotal.beginDraw();
+		this.drawWorld(this.shadowmapTotal.camera);
+		this.shadowmapTotal.endDraw();
 		
+		this.shadowmapDetail.camera.setPos(camera.pos);
+		this.shadowmapDetail.beginDraw();
+		this.drawWorld(this.shadowmapDetail.camera);
+		this.shadowmapDetail.endDraw();
+		
+		this.drawWorld(camera);
+		//this.quad.draw([0,1,0], camera, this.sun.getSkyDir());
+	}
+	
+	drawWorld(camera)
+	{
 		this.skybox.draw(camera);
 		this.ground.draw(camera);
 		
 		this.forEachChunk(({chunk, ox, oy, oz}) => {
-			chunk.draw([ox, oy, oz], camera, this.sun.getRayDir());
+			chunk.draw(
+				[ox, oy, oz],
+				camera,
+				this.sun.getRayDir(),
+				this.shadowmapTotal,
+				this.shadowmapDetail,
+			);
 		});
 		
 		this.models.draw(camera, this.sun.getSkyDir());

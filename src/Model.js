@@ -4,13 +4,17 @@ let layout = new VertexLayout("float", ["pos", 3], ["norm", 3], ["uv", 2]);
 
 export class Model
 {
-	constructor(display, data, indices, texfile)
+	constructor(display, data, indices, tex)
 	{
+		if(typeof tex === "string") {
+			tex = display.getTexture(tex);
+		}
+		
+		this.tex     = tex;
 		this.display = display;
 		this.buf     = display.Buffer("static", layout, data);
 		this.ibuf    = display.Buffer("static", "index", indices);
 		this.shader  = display.getShader("model", modelVertSrc, modelFragSrc);
-		this.tex     = display.getTexture(texfile);
 	}
 	
 	draw(pos, camera, sun, instances = null)

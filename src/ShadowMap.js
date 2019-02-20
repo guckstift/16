@@ -2,21 +2,21 @@ import {Camera} from "../gluck/Camera.js";
 
 export class ShadowMap
 {
-	constructor(display, sun)
+	constructor(display, sun, scale = 16, resol = 2048)
 	{
 		this.display  = display;
 		this.sun      = sun;
-		this.colortex = display.DataTexture(2048, 2048, false);
-		this.depthtex = display.DataTexture(2048, 2048, true);
+		this.colortex = display.DataTexture(resol, resol, false, false);
+		this.depthtex = display.DataTexture(resol, resol, true, true);
 		this.camera   = new Camera(false, true);
-		this.camera.setProjection(2/444, display.getAspect(), -1024, 1024).setPos([128,128,128]);
+		this.camera.setProjection(2/scale, 1, -1024, 1024).setPos([0,0,0]);
 	}
 	
 	beginDraw()
 	{
-		this.display.renderToTextures(this.colortex, this.depthtex);
 		let d = this.sun.getSkyDir();
-		this.camera.setAspect(this.display.getAspect());
+		
+		this.display.renderToTextures(this.colortex, this.depthtex);
 		this.camera.setYangle(Math.atan2(d[0], d[2]) + Math.PI);
 		this.camera.setXangle(-Math.asin(d[1]));
 	}
@@ -24,5 +24,10 @@ export class ShadowMap
 	endDraw()
 	{
 		this.display.renderToCanvas();
+	}
+	
+	getMatrix()
+	{
+		return this.camera.getProjView();
 	}
 }

@@ -140,8 +140,8 @@ export class Display extends Dom
 		return new Texture(this, url);
 	}
 	
-	DataTexture(width, height, isdepth = false)
+	DataTexture(width, height, isdepth = false, smooth = false)
 	{
-		return new DataTexture(this, width, height, isdepth);
+		return new DataTexture(this, width, height, isdepth, smooth);
 	}
 }

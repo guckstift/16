@@ -1,8 +1,6 @@
 # TODO
 
-* generate trees on map
 * create ocean layer
-* implement shadow mapping
 * carve caves into landscape
 * bug: slope glitches at
 	[33.59912694245577, 17.84912872314453, 17.34668625332415]
@@ -35,4 +33,6 @@
 * async meshing of chunks with worker
 * model batching and instancing
 * async generation of world with worker
+* generate trees on map
+* implement shadow mapping
 
