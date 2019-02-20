@@ -63,9 +63,9 @@ export class Display extends Dom
 		
 		if(this.timeAccu >= 1) {
 			this.fps       = this.frameAccu;
-			console.log(this.fps);
 			this.timeAccu -= 1;
 			this.frameAccu = 0;
+			this.trigger("fps", this.fps);
 		}
 	}
 	
