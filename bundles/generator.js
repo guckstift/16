@@ -11589,6 +11589,50 @@ var generator = (function (exports) {
 
 		function generateSlopes(world)
 		{
+			for(let z=0; z < WORLD_WIDTH; z++) {
+				for(let x=0; x < WORLD_WIDTH; x++) {
+					let h = getHeight(x, z);
+					let y = h + 1;
+					
+					if(
+						getHeight(x, z + 1) > h &&
+						getHeight(x - 1, z) >= h &&
+						getHeight(x + 1, z) >= h
+					) {
+						putSlope(world, x,   y, z, 0b1100);
+						putSlope(world, x-1, y, z, 0b1000);
+						putSlope(world, x+1, y, z, 0b0100);
+					}
+					if(
+						getHeight(x, z - 1) > h &&
+						getHeight(x - 1, z) >= h &&
+						getHeight(x + 1, z) >= h
+					) {
+						putSlope(world, x,   y, z, 0b0011);
+						putSlope(world, x-1, y, z, 0b0010);
+						putSlope(world, x+1, y, z, 0b0001);
+					}
+					if(
+						getHeight(x + 1, z) > h &&
+						getHeight(x, z - 1) >= h &&
+						getHeight(x, z + 1) >= h
+					) {
+						putSlope(world, x, y, z,   0b1010);
+						putSlope(world, x, y, z-1, 0b1000);
+						putSlope(world, x, y, z+1, 0b0010);
+					}
+					if(
+						getHeight(x - 1, z) > h &&
+						getHeight(x, z - 1) >= h &&
+						getHeight(x, z + 1) >= h
+					) {
+						putSlope(world, x, y, z,   0b0101);
+						putSlope(world, x, y, z-1, 0b0100);
+						putSlope(world, x, y, z+1, 0b0001);
+					}
+				}
+			}
+			/*
 			world.forEachBlockPos(({x, y, z}) => {
 				let h = getHeight(x, z);
 				
@@ -11629,6 +11673,7 @@ var generator = (function (exports) {
 					putSlope(world, x, y, z+1, 0b0001);
 				}
 			});
+			*/
 		}
 
 		function putSlope(world, x, y, z, sl)
