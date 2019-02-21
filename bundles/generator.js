@@ -138,9 +138,9 @@ var generator = (function (exports) {
 	{
 		constructor()
 		{
-			this.data     = [0, 0];
-			this.objs     = {};
-			this.modified = false;
+			this.data      = [0, 0];
+			this.modified  = false;
+			this.maxheight = 0;
 		}
 		
 		isUniform()
@@ -181,6 +181,11 @@ var generator = (function (exports) {
 		isModified()
 		{
 			return this.modified;
+		}
+		
+		getMaxHeight()
+		{
+			return this.maxheight;
 		}
 		
 		forEachBlock(fn)
@@ -226,7 +231,14 @@ var generator = (function (exports) {
 		
 		setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
 		{
-			intervalPlace(this.data, localBlockIndex(x, y, z), id, sl, addsl);
+			let v = intervalPlace(this.data, localBlockIndex(x, y, z), id, sl, addsl);
+			
+			if(v > 0) {
+				if(y + 1 > this.getMaxHeight()) {
+					this.setMaxHeight(y + 1);
+				}
+			}
+			
 			this.modified = true;
 		}
 		
@@ -238,6 +250,11 @@ var generator = (function (exports) {
 		addBlockSlope(x, y, z, sl)
 		{
 			this.setBlock(x, y, z, undefined, sl, true);
+		}
+		
+		setMaxHeight(y)
+		{
+			this.maxheight = y;
 		}
 		
 		packFrom(buf)
@@ -252,8 +269,9 @@ var generator = (function (exports) {
 		
 		deserialize(plain)
 		{
-			this.data     = plain.data;
-			this.modified = true;
+			this.data      = plain.data;
+			this.maxheight = plain.maxheight;
+			this.modified  = true;
 		}
 	}
 
@@ -344,6 +362,8 @@ var generator = (function (exports) {
 				data.splice(ii + 2, 0, i, v, i + 1, iv);
 			}
 		}
+		
+		return v;
 	}
 
 	function intervalForEach(data, fn)
@@ -563,6 +583,7 @@ var generator = (function (exports) {
 	);
 
 	let dataCacheMatrix = null;
+	let maxHeightMatrix = null;
 	let dataBufMatrix   = null;
 	let worker          = null;
 	let nextCbId        = null;
@@ -573,6 +594,12 @@ var generator = (function (exports) {
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+		];
+		
+		maxHeightMatrix = [
+			0, 0, 0,
+			0, 0, 0,
+			0, 0, 0,
 		];
 
 		dataBufMatrix = dataCacheMatrix.map(x => x.buffer);
@@ -596,13 +623,14 @@ var generator = (function (exports) {
 		callbacks[cbId] = fn;
 		
 		unpackChunkData(chunkVicinity);
-		worker.postMessage({dcm: dataCacheMatrix, cbId: cbId});
+		worker.postMessage({dcm: dataCacheMatrix, mhm: maxHeightMatrix, cbId: cbId});
 	}
 
 	function unpackChunkData(chunkVicinity)
 	{
 		chunkVicinity.forEach((chunk, i) => {
 			chunk.unpackTo(dataCacheMatrix[i]);
+			maxHeightMatrix[i] = chunk.getMaxHeight();
 		});
 	}
 
@@ -11226,13 +11254,6 @@ var generator = (function (exports) {
 				
 				this.shadowmapTotal.camera.setPos([128, 128, 128]);
 				
-				this.quad = new Model(display, [
-					0,0,0,  0,0,-1,  0,0,
-					1,0,0,  0,0,-1,  1,0,
-					0,1,0,  0,0,-1,  0,1,
-					1,1,0,  0,0,-1,  1,1,
-				], [0,1,2, 2,1,3], this.shadowmapDetail.colortex);
-				
 				this.models = new ModelBatch(
 					new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
 				);
@@ -11400,7 +11421,6 @@ var generator = (function (exports) {
 			this.shadowmapDetail.endDraw();
 			
 			this.drawWorld(camera);
-			//this.quad.draw([0,1,0], camera, this.sun.getSkyDir());
 		}
 		
 		drawWorld(camera)
@@ -11564,6 +11584,8 @@ var generator = (function (exports) {
 		function generateBaseTerrain(world)
 		{
 			world.forEachChunk(({chunk, ox, oz}) => {
+				let maxh = 0;
+				
 				for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
 					for(let x=0; x < CHUNK_WIDTH; x++, i += CHUNK_HEIGHT) {
 						let gx = ox + x;
@@ -11580,9 +11602,12 @@ var generator = (function (exports) {
 							world.trees.push(h + 1);
 							world.trees.push(gz);
 						}
+						
+						maxh = Math.max(maxh, h + 1);
 					}
 				}
 				
+				chunk.setMaxHeight(maxh);
 				chunk.packFrom(chunkbuf);
 			});
 		}
@@ -11632,48 +11657,6 @@ var generator = (function (exports) {
 					}
 				}
 			}
-			/*
-			world.forEachBlockPos(({x, y, z}) => {
-				let h = getHeight(x, z);
-				
-				if(y - 1 === h
-					&& getHeight(x, z + 1) > h
-					&& getHeight(x - 1, z) >= h
-					&& getHeight(x + 1, z) >= h
-				) {
-					putSlope(world, x,   y, z, 0b1100);
-					putSlope(world, x-1, y, z, 0b1000);
-					putSlope(world, x+1, y, z, 0b0100);
-				}
-				if(y - 1 === h
-					&& getHeight(x, z - 1) > h
-					&& getHeight(x - 1, z) >= h
-					&& getHeight(x + 1, z) >= h
-				) {
-					putSlope(world, x,   y, z, 0b0011);
-					putSlope(world, x-1, y, z, 0b0010);
-					putSlope(world, x+1, y, z, 0b0001);
-				}
-				if(y - 1 === h
-					&& getHeight(x + 1, z) > h
-					&& getHeight(x, z - 1) >= h
-					&& getHeight(x, z + 1) >= h
-				) {
-					putSlope(world, x, y, z,   0b1010);
-					putSlope(world, x, y, z-1, 0b1000);
-					putSlope(world, x, y, z+1, 0b0010);
-				}
-				if(y - 1 === h
-					&& getHeight(x - 1, z) > h
-					&& getHeight(x, z - 1) >= h
-					&& getHeight(x, z + 1) >= h
-				) {
-					putSlope(world, x, y, z,   0b0101);
-					putSlope(world, x, y, z-1, 0b0100);
-					putSlope(world, x, y, z+1, 0b0001);
-				}
-			});
-			*/
 		}
 
 		function putSlope(world, x, y, z, sl)

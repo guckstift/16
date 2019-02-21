@@ -189,7 +189,7 @@
 
 	onmessage = e =>
 	{
-		let mesh = createMesh$1(e.data.dcm);
+		let mesh = createMesh$1(e.data.dcm, e.data.mhm);
 		
 		postMessage({
 			verts:   mesh,
@@ -202,6 +202,7 @@
 	let QUAD_SIZE = 2 * 3 * VERT_SIZE;
 
 	let dataCacheMatrix$1 = null;
+	let maxHeightMatrix$1 = null;
 
 	let i = create();
 	let j = create();
@@ -219,9 +220,10 @@
 	let meshVerts     = new Uint8Array(CHUNK_SIZE * 6 * QUAD_SIZE);
 	let meshVertCount = 0;
 
-	function createMesh$1(dcm)
+	function createMesh$1(dcm, mhm)
 	{
 		dataCacheMatrix$1 = dcm;
+		maxHeightMatrix$1 = mhm;
 		
 		computeFaces();
 		mergeFaces();
@@ -237,6 +239,11 @@
 	function getDataCache(x, z)
 	{
 		return dataCacheMatrix$1[(x + 1) + (z + 1) * 3];
+	}
+
+	function getMaxHeight(x, z)
+	{
+		return maxHeightMatrix$1[(x + 1) + (z + 1) * 3];
 	}
 
 	function getCachedBlock(x, y, z)
@@ -475,8 +482,10 @@
 
 	function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 	{
-		let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? CHUNK_HEIGHT-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
-		let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : CHUNK_HEIGHT,  fz ? -1 : CHUNK_WIDTH];
+		let maxHeight = getMaxHeight(0, 0, 0);
+		
+		let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? maxHeight-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
+		let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : maxHeight,  fz ? -1 : CHUNK_WIDTH];
 		let s = [fx ? -1 : +1,           fy ? -1 : +1,            fz ? -1 : +1];
 		
 		let index = 0;

@@ -34,13 +34,6 @@ export class World
 			
 			this.shadowmapTotal.camera.setPos([128, 128, 128]);
 			
-			this.quad = new Model(display, [
-				0,0,0,  0,0,-1,  0,0,
-				1,0,0,  0,0,-1,  1,0,
-				0,1,0,  0,0,-1,  0,1,
-				1,1,0,  0,0,-1,  1,1,
-			], [0,1,2, 2,1,3], this.shadowmapDetail.colortex);
-			
 			this.models = new ModelBatch(
 				new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
 			);
@@ -208,7 +201,6 @@ export class World
 		this.shadowmapDetail.endDraw();
 		
 		this.drawWorld(camera);
-		//this.quad.draw([0,1,0], camera, this.sun.getSkyDir());
 	}
 	
 	drawWorld(camera)

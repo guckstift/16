@@ -85,6 +85,8 @@ else {
 	function generateBaseTerrain(world)
 	{
 		world.forEachChunk(({chunk, ox, oz}) => {
+			let maxh = 0;
+			
 			for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
 				for(let x=0; x < CHUNK_WIDTH; x++, i += CHUNK_HEIGHT) {
 					let gx = ox + x;
@@ -101,9 +103,12 @@ else {
 						world.trees.push(h + 1);
 						world.trees.push(gz);
 					}
+					
+					maxh = Math.max(maxh, h + 1);
 				}
 			}
 			
+			chunk.setMaxHeight(maxh);
 			chunk.packFrom(chunkbuf);
 		});
 	}

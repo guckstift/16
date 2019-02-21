@@ -47,6 +47,7 @@ export let CHUNK_VERT_LAYOUT = new VertexLayout(
 );
 
 let dataCacheMatrix = null;
+let maxHeightMatrix = null;
 let dataBufMatrix   = null;
 let worker          = null;
 let nextCbId        = null;
@@ -57,6 +58,12 @@ if(typeof window === "object") {
 		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
+	];
+	
+	maxHeightMatrix = [
+		0, 0, 0,
+		0, 0, 0,
+		0, 0, 0,
 	];
 
 	dataBufMatrix = dataCacheMatrix.map(x => x.buffer);
@@ -80,12 +87,13 @@ function createMesh(chunkVicinity, fn)
 	callbacks[cbId] = fn;
 	
 	unpackChunkData(chunkVicinity);
-	worker.postMessage({dcm: dataCacheMatrix, cbId: cbId});
+	worker.postMessage({dcm: dataCacheMatrix, mhm: maxHeightMatrix, cbId: cbId});
 }
 
 function unpackChunkData(chunkVicinity)
 {
 	chunkVicinity.forEach((chunk, i) => {
 		chunk.unpackTo(dataCacheMatrix[i]);
+		maxHeightMatrix[i] = chunk.getMaxHeight();
 	});
 }

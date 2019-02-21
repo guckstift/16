@@ -5,7 +5,7 @@ import {CHUNK_SIZE, CHUNK_WIDTH, CHUNK_HEIGHT, localBlockIndex} from "./worldmet
 
 onmessage = e =>
 {
-	let mesh = createMesh(e.data.dcm);
+	let mesh = createMesh(e.data.dcm, e.data.mhm);
 	
 	postMessage({
 		verts:   mesh,
@@ -18,6 +18,7 @@ let VERT_SIZE = CHUNK_VERT_LAYOUT.getSize();
 let QUAD_SIZE = 2 * 3 * VERT_SIZE;
 
 let dataCacheMatrix = null;
+let maxHeightMatrix = null;
 let dataBufMatrix   = null;
 
 let i = vector.create();
@@ -36,9 +37,10 @@ let frontFaces  = new Uint32Array(CHUNK_SIZE);
 let meshVerts     = new Uint8Array(CHUNK_SIZE * 6 * QUAD_SIZE);
 let meshVertCount = 0;
 
-function createMesh(dcm)
+function createMesh(dcm, mhm)
 {
 	dataCacheMatrix = dcm;
+	maxHeightMatrix = mhm;
 	
 	computeFaces();
 	mergeFaces();
@@ -54,6 +56,11 @@ function getLastVertNum()
 function getDataCache(x, z)
 {
 	return dataCacheMatrix[(x + 1) + (z + 1) * 3];
+}
+
+function getMaxHeight(x, z)
+{
+	return maxHeightMatrix[(x + 1) + (z + 1) * 3];
 }
 
 function getCachedBlock(x, y, z)
@@ -297,8 +304,10 @@ function mergeFaces()
 
 function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 {
-	let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? CHUNK_HEIGHT-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
-	let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : CHUNK_HEIGHT,  fz ? -1 : CHUNK_WIDTH];
+	let maxHeight = getMaxHeight(0, 0, 0);
+	
+	let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? maxHeight-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
+	let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : maxHeight,  fz ? -1 : CHUNK_WIDTH];
 	let s = [fx ? -1 : +1,           fy ? -1 : +1,            fz ? -1 : +1];
 	
 	let index = 0;

@@ -8,9 +8,9 @@ export class ChunkData
 {
 	constructor()
 	{
-		this.data     = [0, 0];
-		this.objs     = {};
-		this.modified = false;
+		this.data      = [0, 0];
+		this.modified  = false;
+		this.maxheight = 0;
 	}
 	
 	isUniform()
@@ -51,6 +51,11 @@ export class ChunkData
 	isModified()
 	{
 		return this.modified;
+	}
+	
+	getMaxHeight()
+	{
+		return this.maxheight;
 	}
 	
 	forEachBlock(fn)
@@ -96,7 +101,14 @@ export class ChunkData
 	
 	setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
 	{
-		intervalPlace(this.data, localBlockIndex(x, y, z), id, sl, addsl);
+		let v = intervalPlace(this.data, localBlockIndex(x, y, z), id, sl, addsl);
+		
+		if(v > 0) {
+			if(y + 1 > this.getMaxHeight()) {
+				this.setMaxHeight(y + 1);
+			}
+		}
+		
 		this.modified = true;
 	}
 	
@@ -108,6 +120,11 @@ export class ChunkData
 	addBlockSlope(x, y, z, sl)
 	{
 		this.setBlock(x, y, z, undefined, sl, true);
+	}
+	
+	setMaxHeight(y)
+	{
+		this.maxheight = y;
 	}
 	
 	packFrom(buf)
@@ -122,8 +139,9 @@ export class ChunkData
 	
 	deserialize(plain)
 	{
-		this.data     = plain.data;
-		this.modified = true;
+		this.data      = plain.data;
+		this.maxheight = plain.maxheight;
+		this.modified  = true;
 	}
 }
 
@@ -214,6 +232,8 @@ function intervalPlace(data, i, id = undefined, sl = undefined, addsl = false)
 			data.splice(ii + 2, 0, i, v, i + 1, iv);
 		}
 	}
+	
+	return v;
 }
 
 function intervalForEach(data, fn)
