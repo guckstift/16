@@ -1,10 +1,7 @@
 import {World} from "./World.js";
 import {NoiseLayer2d} from "./NoiseLayer2d.js";
 
-import {
-	CHUNK_SIZE, CHUNK_WIDTH, WORLD_WIDTH, WORLD_CHUNKS_WIDTH,
-	localBlockIndex, localBlockX, localBlockY, localBlockZ,	globalBlockIndex
-} from "./worldmetrics.js";
+import {WORLD_WIDTH, CHUNK_SIZE} from "./worldmetrics.js";
 
 let worker   = null;
 let callback = null;
@@ -89,10 +86,10 @@ else {
 
 	function generateBaseTerrain(world)
 	{
-		world.forEachChunk(({chunk, ox, oy, oz}) => {
+		world.forEachChunk(({chunk, ox, oz}) => {
 			chunk.forEachBlock(({i, x, y, z}) => {
 				let gx = ox + x;
-				let gy = oy + y;
+				let gy = y;
 				let gz = oz + z;
 				let h  = getHeight(gx, gz);
 				

@@ -15,9 +15,9 @@ export class ChunkDrawable extends ChunkMesh
 		}
 	}
 	
-	update(getChunkVicinity, x, y, z)
+	update(getChunkVicinity, x, z)
 	{
-		super.update(getChunkVicinity, x, y, z, () => {
+		super.update(getChunkVicinity, x, z, () => {
 			if(this.display) {
 				this.buf.update(this.getVerts());
 			}

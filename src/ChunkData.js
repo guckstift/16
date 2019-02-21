@@ -1,5 +1,5 @@
 import {
-	CHUNK_SIZE, CHUNK_WIDTH, localBlockIndex, localBlockX, localBlockY, localBlockZ
+	CHUNK_SIZE, CHUNK_WIDTH, CHUNK_HEIGHT, localBlockIndex, localBlockX, localBlockY, localBlockZ
 } from "./worldmetrics.js";
 
 import {getBlockId, getBlockSlope} from "./blocks.js";
@@ -70,8 +70,8 @@ export class ChunkData
 	forEachBlockPos(fn)
 	{
 		for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
-			for(let y=0; y < CHUNK_WIDTH; y++) {
-				for(let x=0; x < CHUNK_WIDTH; x++, i++) {
+			for(let x=0; x < CHUNK_WIDTH; x++) {
+				for(let y=0; y < CHUNK_HEIGHT; y++, i++) {
 					fn({x, y, z, i});
 				}
 			}

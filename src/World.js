@@ -10,15 +10,15 @@ import {ModelBatch} from "./ModelBatch.js";
 import {tree1} from "../models/tree1.js";
 
 import {
-	WORLD_CHUNKS_WIDTH, WORLD_CHUNKS_SIZE, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
+	WORLD_CHUNKS_COUNT, WORLD_CHUNKS_W, CHUNK_WIDTH, localChunkIndex, blockToChunk, localBlock
 } from "./worldmetrics.js";
 
 export class World
 {
 	constructor(display)
 	{
-		this.chunkVicinity = Array(3 ** 3);
-		this.chunks        = Array(WORLD_CHUNKS_SIZE);
+		this.chunkVicinity = Array(3 ** 2);
+		this.chunks        = Array(WORLD_CHUNKS_COUNT);
 		this.sun           = new Sun(1, 0);
 		this.emptyChunk    = new ChunkDrawable(display);
 		this.trees         = [];
@@ -51,49 +51,44 @@ export class World
 		});
 	}
 	
-	getChunk(x, y, z)
+	getChunk(x, z)
 	{
-		if(
-			x >= 0 && y >= 0 && z >= 0 &&
-			x < WORLD_CHUNKS_WIDTH && y < WORLD_CHUNKS_WIDTH && z < WORLD_CHUNKS_WIDTH
-		) {
-			return this.chunks[localChunkIndex(x, y, z)];
+		if(x >= 0 && z >= 0 && x < WORLD_CHUNKS_W && z < WORLD_CHUNKS_W) {
+			return this.chunks[localChunkIndex(x, z)];
 		}
 		
 		return this.emptyChunk;
 	}
 	
-	getChunkVicinity(x, y, z)
+	getChunkVicinity(x, z)
 	{
 		for(let iz = z - 1, i = 0; iz <= z + 1; iz++) {
-			for(let iy = y - 1; iy <= y + 1; iy++) {
-				for(let ix = x - 1; ix <= x + 1; ix++, i++) {
-					this.chunkVicinity[i] = this.getChunk(ix, iy, iz);
-				}
+			for(let ix = x - 1; ix <= x + 1; ix++, i++) {
+				this.chunkVicinity[i] = this.getChunk(ix, iz);
 			}
 		}
 		
 		return this.chunkVicinity;
 	}
 	
-	getChunkAt(x, y, z)
+	getChunkAt(x, z)
 	{
-		return this.getChunk(blockToChunk(x), blockToChunk(y), blockToChunk(z));
+		return this.getChunk(blockToChunk(x), blockToChunk(z));
 	}
 	
 	getBlock(x, y, z)
 	{
-		return this.getChunkAt(x, y, z).getBlock(localBlock(x), localBlock(y), localBlock(z));
+		return this.getChunkAt(x, z).getBlock(localBlock(x), y, localBlock(z));
 	}
 	
 	getBlockId(x, y, z)
 	{
-		return this.getChunkAt(x, y, z).getBlockId(localBlock(x), localBlock(y), localBlock(z));
+		return this.getChunkAt(x, z).getBlockId(localBlock(x), y, localBlock(z));
 	}
 	
 	getBlockSlope(x, y, z)
 	{
-		return this.getChunkAt(x, y, z).getBlockSlope(localBlock(x), localBlock(y), localBlock(z));
+		return this.getChunkAt(x, z).getBlockSlope(localBlock(x), y, localBlock(z));
 	}
 	
 	getBlockInfo(x, y, z)
@@ -118,35 +113,29 @@ export class World
 	
 	forEachChunk(fn)
 	{
-		for(let z=0, i=0; z < WORLD_CHUNKS_WIDTH; z++) {
+		for(let z=0, i=0; z < WORLD_CHUNKS_W; z++) {
 			let oz = z * CHUNK_WIDTH;
-			
-			for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
-				let oy = y * CHUNK_WIDTH;
+		
+			for(let x=0; x < WORLD_CHUNKS_W; x++, i++) {
+				let ox = x * CHUNK_WIDTH;
 				
-				for(let x=0; x < WORLD_CHUNKS_WIDTH; x++, i++) {
-					let ox = x * CHUNK_WIDTH;
-					
-					fn({
-						chunk: this.chunks[i],
-						i, x, y, z, ox, oy, oz,
-					});
-				}
+				fn({
+					chunk: this.chunks[i],
+					i, x, z, ox, oz,
+				});
 			}
 		}
 	}
 	
 	forEachBlock(fn)
 	{
-		this.forEachChunk(({chunk, ox, oy, oz}) => {
+		this.forEachChunk(({chunk, ox, oz}) => {
 			chunk.forEachBlock(({block, i, id, slope, x, y, z}) => {
 				fn({
-					chunk, block, id, slope,
+					chunk, block, id, slope, y,
 					x:  ox + x,
-					y:  oy + y,
 					z:  oz + z,
 					lx: x,
-					ly: y,
 					lz: z,
 				});
 			});
@@ -155,15 +144,13 @@ export class World
 	
 	forEachBlockPos(fn)
 	{
-		this.forEachChunk(({chunk, ox, oy, oz}) => {
+		this.forEachChunk(({chunk, ox, oz}) => {
 			chunk.forEachBlockPos(({x, y, z, i}) => {
 				fn({
-					chunk,
+					chunk, y,
 					x:  ox + x,
-					y:  oy + y,
 					z:  oz + z,
 					lx: x,
-					ly: y,
 					lz: z,
 				});
 			});
@@ -172,11 +159,7 @@ export class World
 	
 	setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
 	{
-		let chunk = this.getChunkAt(x, y, z);
-		
-		if(chunk) {
-			return chunk.setBlock(localBlock(x), localBlock(y), localBlock(z), id, sl, addsl);
-		}
+		this.getChunkAt(x, z).setBlock(localBlock(x), y, localBlock(z), id, sl, addsl);
 	}
 	
 	setBlockSlope(x, y, z, sl)
@@ -206,8 +189,8 @@ export class World
 	
 	update(delta)
 	{
-		this.forEachChunk(({chunk, x, y, z}) => {
-			chunk.update(this.getChunkVicinity, x, y, z);
+		this.forEachChunk(({chunk, x, z}) => {
+			chunk.update(this.getChunkVicinity, x, z);
 		});
 		
 		this.sun.update(delta);
@@ -233,9 +216,9 @@ export class World
 		this.skybox.draw(camera);
 		this.ground.draw(camera);
 		
-		this.forEachChunk(({chunk, ox, oy, oz}) => {
+		this.forEachChunk(({chunk, ox, oz}) => {
 			chunk.draw(
-				[ox, oy, oz],
+				[ox, 0, oz],
 				camera,
 				this.sun.getRayDir(),
 				this.shadowmapTotal,

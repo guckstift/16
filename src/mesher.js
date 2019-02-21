@@ -1,16 +1,17 @@
 import * as vector from "../gluck/vector.js";
 import {CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
-import {isSolidBlock, getBlockTile, isVisibleBlock} from "./blocks.js";
-import {CHUNK_WIDTH, CHUNK_SIZE, localBlockIndex} from "./worldmetrics.js";
+import {isSolidBlock, getBlockTile, isVisibleBlock, getBlockId, getBlockSlope} from "./blocks.js";
+import {CHUNK_SIZE, CHUNK_WIDTH, CHUNK_HEIGHT, localBlockIndex} from "./worldmetrics.js";
 
-onmessage = e => {
-	
+onmessage = e =>
+{
 	let mesh = createMesh(e.data.dcm);
 	
-	postMessage(
-		{verts: mesh, vertnum: meshVertCount, cbId: e.data.cbId},
-		//[mesh.buffer, dataCacheMatrix.buffer]
-	);
+	postMessage({
+		verts:   mesh,
+		vertnum: getLastVertNum(),
+		cbId:    e.data.cbId,
+	});
 };
 
 let VERT_SIZE = CHUNK_VERT_LAYOUT.getSize();
@@ -45,24 +46,30 @@ function createMesh(dcm)
 	return new Uint8Array(meshVerts.subarray(0, meshVertCount * VERT_SIZE));
 }
 
-function getBlockId(block)
-{
-	return block & 0xff;
-}
-
-function getBlockSlope(block)
-{
-	return block >> 8 & 0xf;
-}
-
 function getLastVertNum()
 {
 	return meshVertCount;
 }
 
-function getDataCache(x, y, z)
+function getDataCache(x, z)
 {
-	return dataCacheMatrix[x + 1 + 3 * (y + 1) + 9 * (z + 1)];
+	return dataCacheMatrix[(x + 1) + (z + 1) * 3];
+}
+
+function getCachedBlock(x, y, z)
+{
+	let dataCache = getDataCache(
+		x < 0 ? -1 : x >= CHUNK_WIDTH ? +1 : 0,
+		z < 0 ? -1 : z >= CHUNK_WIDTH ? +1 : 0,
+	);
+	
+	return dataCache[
+		localBlockIndex(
+			x < 0 ? x + CHUNK_WIDTH : x >= CHUNK_WIDTH ? x - CHUNK_WIDTH : x,
+			y,
+			z < 0 ? z + CHUNK_WIDTH : z >= CHUNK_WIDTH ? z - CHUNK_WIDTH : z,
+		)
+	];
 }
 
 function getCachedBlockId(x, y, z)
@@ -113,54 +120,9 @@ function getSlopeNormalPattern(sl)
 	}
 }
 
-function getCachedBlock(x, y, z)
-{
-	let cx = 0;
-	let cy = 0;
-	let cz = 0;
-	
-	if(x < 0) {
-		cx--;
-		x += CHUNK_WIDTH;
-	}
-	else if(x >= CHUNK_WIDTH) {
-		cx++;
-		x -= CHUNK_WIDTH;
-	}
-	
-	if(y < 0) {
-		cy--;
-		y += CHUNK_WIDTH;
-	}
-	else if(y >= CHUNK_WIDTH) {
-		cy++;
-		y -= CHUNK_WIDTH;
-	}
-	
-	if(z < 0) {
-		cz--;
-		z += CHUNK_WIDTH;
-	}
-	else if(z >= CHUNK_WIDTH) {
-		cz++;
-		z -= CHUNK_WIDTH;
-	}
-	
-	let dataCache = getDataCache(cx, cy, cz);
-	
-	return dataCache[localBlockIndex(x, y, z)];
-}
-
 function getVertOcclusion(side0, side1, corner)
 {
 	return side0 && side1 ? 3 : side0 + side1 + corner;
-}
-
-function unpackChunkData(chunkVicinity)
-{
-	for(let i = 0; i < 27; i++) {
-		chunkVicinity[i].unpackTo(dataCacheMatrix[i]);
-	}
 }
 
 function computeFaces()
@@ -168,8 +130,8 @@ function computeFaces()
 	let dataCache = getDataCache(0, 0, 0);
 	
 	for(let z = 0, i = 0; z < CHUNK_WIDTH; z++) {
-		for(let y = 0; y < CHUNK_WIDTH; y++) {
-			for(let x = 0; x < CHUNK_WIDTH; x++, i++) {
+		for(let x = 0; x < CHUNK_WIDTH; x++) {
+			for(let y = 0; y < CHUNK_HEIGHT; y++, i++) {
 				let block = dataCache[i];
 				let id    = getBlockId(block);
 				let slope = getBlockSlope(block);
@@ -335,9 +297,9 @@ function mergeFaces()
 
 function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 {
-	let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? CHUNK_WIDTH-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
-	let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : CHUNK_WIDTH,  fz ? -1 : CHUNK_WIDTH];
-	let s = [fx ? -1 : +1,           fy ? -1 : +1,           fz ? -1 : +1];
+	let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? CHUNK_HEIGHT-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
+	let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : CHUNK_HEIGHT,  fz ? -1 : CHUNK_WIDTH];
+	let s = [fx ? -1 : +1,           fy ? -1 : +1,            fz ? -1 : +1];
 	
 	let index = 0;
 	let first = 0;
@@ -404,8 +366,12 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 					slope = info.slope;
 					
 					if(slope > 0) {
-						flip = slope === 0b0001 || slope === 0b1000 || slope === 0b1110;
-						addSlopeQuad(j, q, info.tile, slope, flip, info.occl0,info.occl1,info.occl2,info.occl3);
+						addSlopeQuad(
+							j, q,
+							info.tile, slope,
+							slope === 0b0001 || slope === 0b1000 || slope === 0b1110,
+							info.occl0,info.occl1,info.occl2,info.occl3
+						);
 					}
 					else {
 						flip = info.occl0 + info.occl3 < info.occl1 + info.occl2;

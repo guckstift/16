@@ -27,39 +27,40 @@ var generator = (function (exports) {
 		);
 	}
 
-	const CHUNK_BITS  = 4;
-	const CHUNK_WIDTH = 1 << CHUNK_BITS;
-	const CHUNK_SIZE  = CHUNK_WIDTH ** 3;
-
-	const WORLD_BITS         = 4;
-	const WORLD_CHUNKS_WIDTH = 1 << WORLD_BITS;
-	const WORLD_CHUNKS_SIZE  = WORLD_CHUNKS_WIDTH ** 3;
-
-	const WORLD_WIDTH = WORLD_CHUNKS_WIDTH * CHUNK_WIDTH;
+	const CHUNK_BITS_H = 8;
+	const CHUNK_BITS_W = 4;
+	const CHUNK_HEIGHT = 1 << CHUNK_BITS_H;
+	const CHUNK_WIDTH  = 1 << CHUNK_BITS_W;
+	const CHUNK_SIZE   = CHUNK_HEIGHT * CHUNK_WIDTH ** 2;
 
 	function localBlockIndex(x, y, z)
 	{
-		return (((z << CHUNK_BITS) + y) << CHUNK_BITS) + x;
-	}
-
-	function localBlockX(i)
-	{
-		return (i >> CHUNK_BITS * 0) % CHUNK_WIDTH;
+		return (((z << CHUNK_BITS_W) + x) << CHUNK_BITS_H) + y;
 	}
 
 	function localBlockY(i)
 	{
-		return (i >> CHUNK_BITS * 1) % CHUNK_WIDTH;
+		return i % CHUNK_HEIGHT;
+	}
+
+	function localBlockX(i)
+	{
+		return (i >> CHUNK_BITS_H) % CHUNK_WIDTH;
 	}
 
 	function localBlockZ(i)
 	{
-		return (i >> CHUNK_BITS * 2) % CHUNK_WIDTH;
+		return (i >> (CHUNK_BITS_W + CHUNK_BITS_H)) % CHUNK_WIDTH;
 	}
+
+	const WORLD_BITS_W       = 4;
+	const WORLD_CHUNKS_W     = 1 << WORLD_BITS_W;
+	const WORLD_CHUNKS_COUNT = WORLD_CHUNKS_W ** 2;
+	const WORLD_WIDTH        = WORLD_CHUNKS_W * CHUNK_WIDTH;
 
 	function blockToChunk(c)
 	{
-		return c >> CHUNK_BITS;
+		return c >> CHUNK_BITS_W;
 	}
 
 	function localBlock(c)
@@ -67,9 +68,9 @@ var generator = (function (exports) {
 		return mod(c, CHUNK_WIDTH);
 	}
 
-	function localChunkIndex(x, y, z)
+	function localChunkIndex(x, z)
 	{
-		return (((z << WORLD_BITS) + y) << WORLD_BITS) + x;
+		return (z << WORLD_BITS_W) + x;
 	}
 
 	const blocks = [
@@ -199,8 +200,8 @@ var generator = (function (exports) {
 		forEachBlockPos(fn)
 		{
 			for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
-				for(let y=0; y < CHUNK_WIDTH; y++) {
-					for(let x=0; x < CHUNK_WIDTH; x++, i++) {
+				for(let x=0; x < CHUNK_WIDTH; x++) {
+					for(let y=0; y < CHUNK_HEIGHT; y++, i++) {
 						fn({x, y, z, i});
 					}
 				}
@@ -539,7 +540,7 @@ var generator = (function (exports) {
 			return this.vertnum;
 		}
 		
-		update(getChunkVicinity, x, y, z, fn)
+		update(getChunkVicinity, x, z, fn)
 		{
 			if(super.update()) {
 				if(this.isUniform() && !isVisibleBlock(this.getUniform())) {
@@ -547,7 +548,7 @@ var generator = (function (exports) {
 					this.vertnum = 0;
 				}
 				else {
-					createMesh(getChunkVicinity(x, y, z), (verts, vertnum) => {
+					createMesh(getChunkVicinity(x, z), (verts, vertnum) => {
 						this.verts   = verts;
 						this.vertnum = vertnum;
 						fn();
@@ -569,14 +570,6 @@ var generator = (function (exports) {
 
 	if(typeof window === "object") {
 		dataCacheMatrix = [
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-			
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
 			new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
@@ -603,586 +596,15 @@ var generator = (function (exports) {
 		callbacks[cbId] = fn;
 		
 		unpackChunkData(chunkVicinity);
-		worker.postMessage({dcm: dataCacheMatrix, cbId: cbId});//, dataBufMatrix);
+		worker.postMessage({dcm: dataCacheMatrix, cbId: cbId});
 	}
 
 	function unpackChunkData(chunkVicinity)
 	{
-		for(let i = 0; i < 27; i++) {
-			chunkVicinity[i].unpackTo(dataCacheMatrix[i]);
-		}
+		chunkVicinity.forEach((chunk, i) => {
+			chunk.unpackTo(dataCacheMatrix[i]);
+		});
 	}
-
-	/*
-	let VERT_SIZE = CHUNK_VERT_LAYOUT.getSize();
-	let QUAD_SIZE = 2 * 3 * VERT_SIZE;
-
-	let dataCacheMatrix = [
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-		new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE), new Uint16Array(CHUNK_SIZE),
-	];
-
-	let i = vector.create();
-	let j = vector.create();
-	let q = vector.create();
-	let r = vector.create();
-	let n = vector.create();
-
-	let rightFaces  = new Uint32Array(CHUNK_SIZE);
-	let leftFaces   = new Uint32Array(CHUNK_SIZE);
-	let topFaces    = new Uint32Array(CHUNK_SIZE);
-	let bottomFaces = new Uint32Array(CHUNK_SIZE);
-	let backFaces   = new Uint32Array(CHUNK_SIZE);
-	let frontFaces  = new Uint32Array(CHUNK_SIZE);
-
-	let meshVerts     = new Uint8Array(CHUNK_SIZE * 6 * QUAD_SIZE);
-	let meshVertCount = 0;
-
-	function createMesh(cdm)
-	{
-		unpackChunkData(cdm);
-		computeFaces();
-		mergeFaces();
-		
-		return new Uint8Array(meshVerts.subarray(0, meshVertCount * VERT_SIZE));
-	}
-
-	function getBlockId(block)
-	{
-		return block & 0xff;
-	}
-
-	function getBlockSlope(block)
-	{
-		return block >> 8 & 0xf;
-	}
-
-	function getLastVertNum()
-	{
-		return meshVertCount;
-	}
-
-	function getDataCache(x, y, z)
-	{
-		return dataCacheMatrix[x + 1 + 3 * (y + 1) + 9 * (z + 1)];
-	}
-
-	function getCachedBlockId(x, y, z)
-	{
-		return getBlockId(getCachedBlock(x, y, z));
-	}
-
-	function isOccluding(block)
-	{
-		return isSolidBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
-	}
-
-	function getSlopeNormalPattern(sl)
-	{
-		switch(sl) {
-			case 0b0000:
-				return [0,0, 0,0, 0,0, 0,0]
-			case 0b0001:
-				return [1,1, 1,0, 0,1, 1,1];
-			case 0b0010:
-				return [-1,1, -1,1, -1,1, 0,1];
-			case 0b0011:
-				return [0,1, 0,1, 0,1, 0,1];
-			case 0b0100:
-				return [0,-1, 1-1, 1-1, 1, 0];
-			case 0b0101:
-				return [1,0, 1,0, 1,0, 1,0];
-			case 0b0110:
-				return [-1,-1,  0,0, 0,0, 1,1];
-			case 0b0111:
-				return [ 1,1,  0,1, 1,0,  1,1];
-			case 0b1000:
-				return [-1,-1, 0,-1, -1,0, -1,-1];
-			case 0b1001:
-				return [0,0, 1,-1, -1,1, 0,0];
-			case 0b1010:
-				return [-1,0, -1,0, -1,0, -1,0];
-			case 0b1011:
-				return [ 0,1, -1,1, -1,1, -1,0];
-			case 0b1100:
-				return [ 0,-1, 0,-1, 0,-1, 0,-1];
-			case 0b1101:
-				return [ 1,0, 1,-1, 1,-1, 0,-1];
-			case 0b1110:
-				return [-1,-1, -1,0,  0,-1, -1,-1];
-			case 0b1111:
-				return [0,0, 0,0, 0,0, 0,0];
-		}
-	}
-
-	function getCachedBlock(x, y, z)
-	{
-		let cx = 0;
-		let cy = 0;
-		let cz = 0;
-		
-		if(x < 0) {
-			cx--;
-			x += CHUNK_WIDTH;
-		}
-		else if(x >= CHUNK_WIDTH) {
-			cx++;
-			x -= CHUNK_WIDTH;
-		}
-		
-		if(y < 0) {
-			cy--;
-			y += CHUNK_WIDTH;
-		}
-		else if(y >= CHUNK_WIDTH) {
-			cy++;
-			y -= CHUNK_WIDTH;
-		}
-		
-		if(z < 0) {
-			cz--;
-			z += CHUNK_WIDTH;
-		}
-		else if(z >= CHUNK_WIDTH) {
-			cz++;
-			z -= CHUNK_WIDTH;
-		}
-		
-		let dataCache = getDataCache(cx, cy, cz);
-		
-		return dataCache[localBlockIndex(x, y, z)];
-	}
-
-	function getVertOcclusion(side0, side1, corner)
-	{
-		return side0 && side1 ? 3 : side0 + side1 + corner;
-	}
-
-	function unpackChunkData(chunkVicinity)
-	{
-		for(let i = 0; i < 27; i++) {
-			chunkVicinity[i].unpackTo(dataCacheMatrix[i]);
-		}
-	}
-
-	function computeFaces()
-	{
-		let dataCache = getDataCache(0, 0, 0);
-		
-		for(let z = 0, i = 0; z < CHUNK_WIDTH; z++) {
-			for(let y = 0; y < CHUNK_WIDTH; y++) {
-				for(let x = 0; x < CHUNK_WIDTH; x++, i++) {
-					let block = dataCache[i];
-					let id    = getBlockId(block);
-					let slope = getBlockSlope(block);
-					
-					rightFaces[i]  = 0;
-					leftFaces[i]   = 0;
-					topFaces[i]    = 0;
-					bottomFaces[i] = 0;
-					backFaces[i]   = 0;
-					frontFaces[i]  = 0;
-					
-					if(isSolidBlock(id)) {
-						if(slope === 0) {
-							computeFace(x, y, z, +1, 0, 0, id, 0, rightFaces);
-							computeFace(x, y, z, -1, 0, 0, id, 1, leftFaces);
-							computeFace(x, y, z,  0,+1, 0, id, 2, topFaces);
-							computeFace(x, y, z,  0,-1, 0, id, 3, bottomFaces);
-							computeFace(x, y, z,  0, 0,+1, id, 4, backFaces);
-							computeFace(x, y, z,  0, 0,-1, id, 5, frontFaces)
-						}
-						else {
-							let occl    = computeFaceOcclusion(x, y, z, 0, 1, 0);
-							topFaces[i] = createFaceInfo(getBlockTile(id, 2), ...occl, slope, 1);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	function computeFaceOcclusion(x, y, z, nx, ny, nz)
-	{
-		let right   = false;
-		let left    = false;
-		let top     = false;
-		let bottom  = false;
-		let rtc     = false;
-		let ltc     = false;
-		let rbc     = false;
-		let lbc     = false;
-		let occl0   = 0;
-		let occl1   = 0;
-		let occl2   = 0;
-		let occl3   = 0;
-
-		if(nx > 0) {
-			right  = isOccluding(getCachedBlock(x + 1, y,     z + 1));
-			left   = isOccluding(getCachedBlock(x + 1, y,     z - 1));
-			top    = isOccluding(getCachedBlock(x + 1, y + 1, z));
-			bottom = isOccluding(getCachedBlock(x + 1, y - 1, z));
-			rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
-			ltc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
-			rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
-			lbc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
-		}
-		else if(nx < 0) {
-			right  = isOccluding(getCachedBlock(x - 1, y,     z - 1));
-			left   = isOccluding(getCachedBlock(x - 1, y,     z + 1));
-			top    = isOccluding(getCachedBlock(x - 1, y + 1, z));
-			bottom = isOccluding(getCachedBlock(x - 1, y - 1, z));
-			rtc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
-			ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
-			rbc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
-			lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
-		}
-		else if(ny > 0) {
-			right  = isOccluding(getCachedBlock(x + 1, y + 1, z));
-			left   = isOccluding(getCachedBlock(x - 1, y + 1, z));
-			top    = isOccluding(getCachedBlock(x,     y + 1, z + 1));
-			bottom = isOccluding(getCachedBlock(x,     y + 1, z - 1));
-			rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
-			ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
-			rbc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
-			lbc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
-		}
-		else if(ny < 0) {
-			right  = isOccluding(getCachedBlock(x + 1, y - 1, z));
-			left   = isOccluding(getCachedBlock(x - 1, y - 1, z));
-			top    = isOccluding(getCachedBlock(x,     y - 1, z - 1));
-			bottom = isOccluding(getCachedBlock(x,     y - 1, z + 1));
-			rtc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
-			ltc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
-			rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
-			lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
-		}
-		else if(nz > 0) {
-			right  = isOccluding(getCachedBlock(x - 1, y,     z + 1));
-			left   = isOccluding(getCachedBlock(x + 1, y,     z + 1));
-			top    = isOccluding(getCachedBlock(x,     y + 1, z + 1));
-			bottom = isOccluding(getCachedBlock(x,     y - 1, z + 1));
-			rtc    = isOccluding(getCachedBlock(x - 1, y + 1, z + 1));
-			ltc    = isOccluding(getCachedBlock(x + 1, y + 1, z + 1));
-			rbc    = isOccluding(getCachedBlock(x - 1, y - 1, z + 1));
-			lbc    = isOccluding(getCachedBlock(x + 1, y - 1, z + 1));
-		}
-		else if(nz < 0) {
-			right  = isOccluding(getCachedBlock(x + 1, y,     z - 1));
-			left   = isOccluding(getCachedBlock(x - 1, y,     z - 1));
-			top    = isOccluding(getCachedBlock(x,     y + 1, z - 1));
-			bottom = isOccluding(getCachedBlock(x,     y - 1, z - 1));
-			rtc    = isOccluding(getCachedBlock(x + 1, y + 1, z - 1));
-			ltc    = isOccluding(getCachedBlock(x - 1, y + 1, z - 1));
-			rbc    = isOccluding(getCachedBlock(x + 1, y - 1, z - 1));
-			lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
-		}
-		
-		occl0 = getVertOcclusion(left,  bottom, lbc);
-		occl1 = getVertOcclusion(right, bottom, rbc);
-		occl2 = getVertOcclusion(left,  top,    ltc);
-		occl3 = getVertOcclusion(right, top,    rtc);
-		
-		return [occl0, occl1, occl2, occl3];
-	}
-
-	function computeFace(x, y, z, nx, ny, nz, id, fid, targetFaces)
-	{
-		let tile    = 0;
-		let visible = 0;
-		let occl    = [0,0,0,0];
-		
-		if(!isOccluding(getCachedBlock(x + nx, y + ny, z + nz))) {
-			tile    = getBlockTile(id, fid);
-			visible = 1;
-			occl    = computeFaceOcclusion(x, y, z, nx, ny, nz);
-		}
-		
-		targetFaces[localBlockIndex(x, y, z)] = (
-			createFaceInfo(tile, ...occl, 0, visible)
-		);
-	}
-
-	function createFaceInfo(tile, occl0, occl1, occl2, occl3, slope, visible)
-	{
-		return (
-			tile | occl0 << 8 | occl1 << 10 | occl2 << 12 | occl3 << 14 | slope << 16 | visible << 20
-		);
-	}
-
-	function extractFaceInfo(face)
-	{
-		return {
-			tile:    face >>  0 & 0xff,
-			occl0:   face >>  8 & 0x03,
-			occl1:   face >> 10 & 0x03,
-			occl2:   face >> 12 & 0x03,
-			occl3:   face >> 14 & 0x03,
-			slope:   face >> 16 & 0x0f,
-			visible: face >> 20 & 0x01,
-		};
-	}
-
-	function mergeFaces()
-	{
-		meshVertCount = 0;
-		
-		mergeFacesSide(rightFaces,  2,1,0, +1, 0, 0, false,false,false);
-		mergeFacesSide(leftFaces,   2,1,0, -1, 0, 0, false,false,true);
-		mergeFacesSide(topFaces,    0,2,1,  0,+1, 0, false,false,false);
-		mergeFacesSide(bottomFaces, 0,2,1,  0,-1, 0, false,false,true);
-		mergeFacesSide(backFaces,   0,1,2,  0, 0,+1, true, false,false);
-		mergeFacesSide(frontFaces,  0,1,2,  0, 0,-1, false,false,false);
-	}
-
-	function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
-	{
-		let a = [fx ? CHUNK_WIDTH-1 : 0, fy ? CHUNK_WIDTH-1 : 0, fz ? CHUNK_WIDTH-1 : 0];
-		let b = [fx ? -1 : CHUNK_WIDTH,  fy ? -1 : CHUNK_WIDTH,  fz ? -1 : CHUNK_WIDTH];
-		let s = [fx ? -1 : +1,           fy ? -1 : +1,           fz ? -1 : +1];
-		
-		let index = 0;
-		let first = 0;
-		let exti  = 0;
-		let spanx = 1;
-		let spany = 1;
-		let flip  = false;
-		let info  = null;
-		let slope = 0;
-		
-		vector.create(0, 0, 0, i);
-		vector.create(0, 0, 0, j);
-		vector.create(nx, ny, nz, n);
-		
-		for(         i[ax2] = a[ax2]; i[ax2] !== b[ax2]; i[ax2] += s[ax2] ) {
-			for(     i[ax1] = a[ax1]; i[ax1] !== b[ax1]; i[ax1] += s[ax1] ) {
-				for( i[ax0] = a[ax0]; i[ax0] !== b[ax0]; i[ax0] += s[ax0] ) {
-				
-					index = localBlockIndex(...i);
-					first = targetFaces[index];
-					info  = extractFaceInfo(first);
-					
-					if(first) {
-						j.set(i);
-						
-						for(spanx = 1; i[ax0] + spanx * s[ax0] !== b[ax0]; spanx++) {
-							j[ax0] = i[ax0] + spanx * s[ax0];
-							exti   = localBlockIndex(...j);
-							
-							if(targetFaces[exti] !== first) {
-								break;
-							}
-							
-							targetFaces[exti] = 0;
-						}
-						
-						outer:
-						for(spany = 1; i[ax1] + spany * s[ax1] !== b[ax1]; spany++) {
-							j[ax1] = i[ax1] + spany * s[ax1];
-							
-							for(let k = 0; k !== spanx * s[ax0]; k += s[ax0]) {
-								j[ax0] = i[ax0] + k;
-								
-								if(targetFaces[localBlockIndex(...j)] !== first) {
-									break outer;
-								}
-							}
-							
-							for(let k = 0; k !== spanx * s[ax0]; k += s[ax0]) {
-								j[ax0] = i[ax0] + k;
-								
-								targetFaces[localBlockIndex(...j)] = 0;
-							}
-						}
-						
-						j[ax0] = i[ax0] + (s[ax0] < 0);
-						j[ax1] = i[ax1] + (s[ax1] < 0);
-						j[ax2] = i[ax2] + (n[ax2] > 0);
-						
-						q[ax0] = j[ax0] + s[ax0] * spanx;
-						q[ax1] = j[ax1] + s[ax1] * spany;
-						q[ax2] = j[ax2];
-						
-						slope = info.slope;
-						
-						if(slope > 0) {
-							flip = slope === 0b0001 || slope === 0b1000 || slope === 0b1110;
-							addSlopeQuad(j, q, info.tile, slope, flip, info.occl0,info.occl1,info.occl2,info.occl3);
-						}
-						else {
-							flip = info.occl0 + info.occl3 < info.occl1 + info.occl2;
-							addQuad(
-								j, q, ax0,ax1,
-								info.occl0,info.occl1,info.occl2,info.occl3,
-								nx,ny,nz, info.tile, flip
-							);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	function arrayCopyInside(buf, to, from, len)
-	{
-		buf.set(buf.subarray(from, from + len), to);
-	}
-
-	function addSlopeQuad(p, q, tile, slope, flip, oc0,oc1,oc2,oc3)
-	{
-		let i = meshVertCount * VERT_SIZE;
-		let s = i;
-		let nx = 0;
-		let ny = 2 * 64;
-		let nz = 0;
-		let slope00 = slope >> 0 & 1;
-		let slope10 = slope >> 1 & 1;
-		let slope01 = slope >> 2 & 1;
-		let slope11 = slope >> 3 & 1;
-		let pattern = getSlopeNormalPattern(slope);
-		
-		nx = pattern[0];
-		nz = pattern[1];
-		nx = (nx + 1) * 64;
-		nz = (nz + 1) * 64;
-		
-		r.set(p);
-		r[1] -= 1 - slope00;
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc0;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		nx = pattern[2];
-		nz = pattern[3];
-		nx = (nx + 1) * 64;
-		nz = (nz + 1) * 64;
-		
-		i += VERT_SIZE;
-		r.set(p);
-		r[0] = q[0];
-		r[1] -= 1 - slope10;
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc1;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		nx = pattern[4];
-		nz = pattern[5];
-		nx = (nx + 1) * 64;
-		nz = (nz + 1) * 64;
-		
-		i += VERT_SIZE;
-		r.set(p);
-		r[1] -= 1 - slope01;
-		r[2] = q[2];
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc2;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		i += VERT_SIZE;
-		arrayCopyInside(meshVerts, i, i - VERT_SIZE * 1, VERT_SIZE);
-		
-		i += VERT_SIZE;
-		arrayCopyInside(meshVerts, i, i - VERT_SIZE * 3, VERT_SIZE);
-		
-		nx = pattern[6];
-		nz = pattern[7];
-		nx = (nx + 1) * 64;
-		nz = (nz + 1) * 64;
-		
-		i += VERT_SIZE;
-		r.set(q);
-		r[1] -= 1 - slope11;
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc3;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny + 1;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		if(flip) {
-			arrayCopyInside(meshVerts, s + VERT_SIZE * 2, s + VERT_SIZE * 5, VERT_SIZE);
-			arrayCopyInside(meshVerts, s + VERT_SIZE * 4, s + VERT_SIZE * 0, VERT_SIZE); 
-		}
-		
-		meshVertCount += 6;
-	}
-
-	function addQuad(p, q, ax0,ax1, oc0,oc1,oc2,oc3, nx,ny,nz, tile, flip)
-	{
-		let i = meshVertCount * VERT_SIZE;
-		let s = i;
-		
-		nx = (nx + 1) * 64;
-		ny = (ny + 1) * 64;
-		nz = (nz + 1) * 64;
-		
-		meshVerts.set(p, i);
-		meshVerts[i + 3] = oc0;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		i += VERT_SIZE;
-		r.set(p);
-		r[ax0] = q[ax0];
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc1;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		i += VERT_SIZE;
-		r.set(p);
-		r[ax1] = q[ax1];
-		meshVerts.set(r, i);
-		meshVerts[i + 3] = oc2;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		i += VERT_SIZE;
-		arrayCopyInside(meshVerts, i, i - VERT_SIZE * 1, VERT_SIZE);
-		
-		i += VERT_SIZE;
-		arrayCopyInside(meshVerts, i, i - VERT_SIZE * 3, VERT_SIZE);
-		
-		i += VERT_SIZE;
-		meshVerts.set(q, i);
-		meshVerts[i + 3] = oc3;
-		meshVerts[i + 4] = nx;
-		meshVerts[i + 5] = ny;
-		meshVerts[i + 6] = nz;
-		meshVerts[i + 7] = tile;
-		
-		if(flip) {
-			arrayCopyInside(meshVerts, s + VERT_SIZE * 2, s + VERT_SIZE * 5, VERT_SIZE);
-			arrayCopyInside(meshVerts, s + VERT_SIZE * 4, s + VERT_SIZE * 0, VERT_SIZE); 
-		}
-		
-		meshVertCount += 6;
-	}
-	*/
 
 	class ChunkDrawable extends ChunkMesh
 	{
@@ -1199,16 +621,16 @@ var generator = (function (exports) {
 			}
 		}
 		
-		update(getChunkVicinity, x, y, z)
+		update(getChunkVicinity, x, z)
 		{
-			super.update(getChunkVicinity, x, y, z, () => {
+			super.update(getChunkVicinity, x, z, () => {
 				if(this.display) {
 					this.buf.update(this.getVerts());
 				}
 			});
 		}
 		
-		draw(pos, camera, sun)
+		draw(pos, camera, sun, shadowmapTotal, shadowmapDetail)
 		{
 			if(this.display && this.buf.getSize() > 0) {
 				let shader = this.shader;
@@ -1219,8 +641,13 @@ var generator = (function (exports) {
 				shader.uniform("sun",       sun);
 				shader.uniform("campos",    camera.pos);
 				shader.uniform("proj",      camera.getProjection());
-				shader.uniform("viewModel", camera.getViewModel(pos));
+				shader.uniform("view",      camera.getView());
+				shader.uniform("model",     camera.getModel(pos));
+				shader.uniform("shadowMatTotal",  shadowmapTotal.getMatrix());
+				shader.uniform("shadowMatDetail", shadowmapDetail.getMatrix());
 				shader.texture("atlas",     this.atlas);
+				shader.texture("depthTotal", shadowmapTotal.depthtex);
+				shader.texture("depthDetail", shadowmapDetail.depthtex);
 				shader.buffer(buf);
 				shader.triangles();
 			}
@@ -1231,6 +658,10 @@ var generator = (function (exports) {
 	uniform vec3 sun;
 	uniform mat4 proj;
 	uniform mat4 viewModel;
+	uniform mat4 view;
+	uniform mat4 model;
+	uniform mat4 shadowMatTotal;
+	uniform mat4 shadowMatDetail;
 	uniform vec3 campos;
 	
 	attribute vec3 vert;
@@ -1239,6 +670,8 @@ var generator = (function (exports) {
 	attribute float occl;
 	
 	varying vec3 vTranslatedVert;
+	varying vec3 vShadowVertTotal;
+	varying vec3 vShadowVertDetail;
 	varying vec2 uvOffset;
 	varying vec2 planePos;
 	varying float coef;
@@ -1247,18 +680,23 @@ var generator = (function (exports) {
 	{
 		vec3 correctVert = vert;
 		vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
-		vec4 translatedVert = viewModel * vec4(correctVert, 1.0);
+		vec4 translatedVert = view * model * vec4(correctVert, 1.0);
+		
+		vec4 shadowVertTotal  = shadowMatTotal * model * vec4(correctVert, 1.0);
+		vec4 shadowVertDetail = shadowMatDetail * model * vec4(correctVert, 1.0);
 		
 		gl_Position = proj * translatedVert;
 		
 		uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
 		planePos = vec2(0.0);
 		
-		vTranslatedVert = translatedVert.xyz;
+		vTranslatedVert   = translatedVert.xyz;
+		vShadowVertTotal  = shadowVertTotal.xyz;
+		vShadowVertDetail = shadowVertDetail.xyz;
 		
 		coef = (
 			0.5 * (1.0 - occl * 0.25) +
-			0.5 * max(0.0, dot(correctNormal, -sun))
+			0.5 * max(0.0, dot(correctNormal, -sun)) * max(0.0, -sun.y)
 		);
 		
 		if(correctNormal.y > 0.125) {
@@ -1284,21 +722,46 @@ var generator = (function (exports) {
 
 	const fragSrc = `
 	uniform sampler2D atlas;
+	uniform sampler2D depthTotal;
+	uniform sampler2D depthDetail;
 	uniform vec3 sun;
 	
 	varying vec3 vTranslatedVert;
+	varying vec3 vShadowVertTotal;
+	varying vec3 vShadowVertDetail;
 	varying vec2 uvOffset;
 	varying vec2 planePos;
 	varying float coef;
 	
 	void main()
 	{
+		float bias = 1.0 / 4096.0;
 		float fog = min(1.0, 16.0 / length(vTranslatedVert));
-		
 		vec2 uv = (uvOffset + fract(planePos)) / 16.0;
+		float depthOccl = 0.0;
 		
-		gl_FragColor      = texture2D(atlas, uv);
-		gl_FragColor.rgb *= coef;
+		if(
+			vShadowVertDetail.x >= -1.0 && vShadowVertDetail.x <= +1.0 &&
+			vShadowVertDetail.y >= -1.0 && vShadowVertDetail.y <= +1.0 &&
+			vShadowVertDetail.z >= -1.0 && vShadowVertDetail.z <= +1.0
+		) {
+			vec2 shadowUv = (vShadowVertDetail.xy + vec2(1, -1)) * 0.5;
+			float depthVal = texture2D(depthDetail, shadowUv).r * 2.0 - 1.0;
+			
+			depthOccl = depthVal < vShadowVertDetail.z - bias ? 1.0 : 0.0;
+		}
+		else {
+			vec2 shadowUv = (vShadowVertTotal.xy + vec2(1, -1)) * 0.5;
+			float depthVal = texture2D(depthTotal, shadowUv).r * 2.0 - 1.0;
+			
+			depthOccl = depthVal < vShadowVertTotal.z - bias ? 1.0 : 0.0;
+		}
+		
+		depthOccl *= max(0.0, -sun.y);
+		
+		gl_FragColor      = vec4(1);//texture2D(atlas, uv);
+		gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
+		
 		gl_FragColor.rgb *= fog;
 		gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
 	}
@@ -2112,21 +1575,21 @@ var generator = (function (exports) {
 
 	class ShadowMap
 	{
-		constructor(display, sun)
+		constructor(display, sun, scale = 16, resol = 2048)
 		{
 			this.display  = display;
 			this.sun      = sun;
-			this.colortex = display.DataTexture(2048, 2048, false);
-			this.depthtex = display.DataTexture(2048, 2048, true);
+			this.colortex = display.DataTexture(resol, resol, false, false);
+			this.depthtex = display.DataTexture(resol, resol, true, true);
 			this.camera   = new Camera(false, true);
-			this.camera.setProjection(2/444, display.getAspect(), -1024, 1024).setPos([128,128,128]);
+			this.camera.setProjection(2/scale, 1, -1024, 1024).setPos([0,0,0]);
 		}
 		
 		beginDraw()
 		{
-			this.display.renderToTextures(this.colortex, this.depthtex);
 			let d = this.sun.getSkyDir();
-			this.camera.setAspect(this.display.getAspect());
+			
+			this.display.renderToTextures(this.colortex, this.depthtex);
 			this.camera.setYangle(Math.atan2(d[0], d[2]) + Math.PI);
 			this.camera.setXangle(-Math.asin(d[1]));
 		}
@@ -2135,19 +1598,28 @@ var generator = (function (exports) {
 		{
 			this.display.renderToCanvas();
 		}
+		
+		getMatrix()
+		{
+			return this.camera.getProjView();
+		}
 	}
 
 	let layout$1 = new VertexLayout("float", ["pos", 3], ["norm", 3], ["uv", 2]);
 
 	class Model
 	{
-		constructor(display, data, indices, texfile)
+		constructor(display, data, indices, tex)
 		{
+			if(typeof tex === "string") {
+				tex = display.getTexture(tex);
+			}
+			
+			this.tex     = tex;
 			this.display = display;
 			this.buf     = display.Buffer("static", layout$1, data);
 			this.ibuf    = display.Buffer("static", "index", indices);
 			this.shader  = display.getShader("model", modelVertSrc, modelFragSrc);
-			this.tex     = display.getTexture(texfile);
 		}
 		
 		draw(pos, camera, sun, instances = null)
@@ -11737,19 +11209,29 @@ var generator = (function (exports) {
 	{
 		constructor(display)
 		{
-			this.chunkVicinity = Array(3 ** 3);
-			this.chunks        = Array(WORLD_CHUNKS_SIZE);
-			this.sun           = new Sun(10, 45);
+			this.chunkVicinity = Array(3 ** 2);
+			this.chunks        = Array(WORLD_CHUNKS_COUNT);
+			this.sun           = new Sun(1, 0);
 			this.emptyChunk    = new ChunkDrawable(display);
 			this.trees         = [];
-			
+					
 			if(display) {
 				this.getChunkVicinity = this.getChunkVicinity.bind(this);
 				this.isSolidBlock     = this.isSolidBlock.bind(this);
 				this.getBlockSlope    = this.getBlockSlope.bind(this);
 				this.skybox           = new Skybox(display, this.sun);
 				this.ground           = new Ground(display, this.sun);
-				this.shadowmap        = new ShadowMap(display, this.sun);
+				this.shadowmapTotal   = new ShadowMap(display, this.sun, 444);
+				this.shadowmapDetail  = new ShadowMap(display, this.sun, 16);
+				
+				this.shadowmapTotal.camera.setPos([128, 128, 128]);
+				
+				this.quad = new Model(display, [
+					0,0,0,  0,0,-1,  0,0,
+					1,0,0,  0,0,-1,  1,0,
+					0,1,0,  0,0,-1,  0,1,
+					1,1,0,  0,0,-1,  1,1,
+				], [0,1,2, 2,1,3], this.shadowmapDetail.colortex);
 				
 				this.models = new ModelBatch(
 					new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
@@ -11761,49 +11243,44 @@ var generator = (function (exports) {
 			});
 		}
 		
-		getChunk(x, y, z)
+		getChunk(x, z)
 		{
-			if(
-				x >= 0 && y >= 0 && z >= 0 &&
-				x < WORLD_CHUNKS_WIDTH && y < WORLD_CHUNKS_WIDTH && z < WORLD_CHUNKS_WIDTH
-			) {
-				return this.chunks[localChunkIndex(x, y, z)];
+			if(x >= 0 && z >= 0 && x < WORLD_CHUNKS_W && z < WORLD_CHUNKS_W) {
+				return this.chunks[localChunkIndex(x, z)];
 			}
 			
 			return this.emptyChunk;
 		}
 		
-		getChunkVicinity(x, y, z)
+		getChunkVicinity(x, z)
 		{
 			for(let iz = z - 1, i = 0; iz <= z + 1; iz++) {
-				for(let iy = y - 1; iy <= y + 1; iy++) {
-					for(let ix = x - 1; ix <= x + 1; ix++, i++) {
-						this.chunkVicinity[i] = this.getChunk(ix, iy, iz);
-					}
+				for(let ix = x - 1; ix <= x + 1; ix++, i++) {
+					this.chunkVicinity[i] = this.getChunk(ix, iz);
 				}
 			}
 			
 			return this.chunkVicinity;
 		}
 		
-		getChunkAt(x, y, z)
+		getChunkAt(x, z)
 		{
-			return this.getChunk(blockToChunk(x), blockToChunk(y), blockToChunk(z));
+			return this.getChunk(blockToChunk(x), blockToChunk(z));
 		}
 		
 		getBlock(x, y, z)
 		{
-			return this.getChunkAt(x, y, z).getBlock(localBlock(x), localBlock(y), localBlock(z));
+			return this.getChunkAt(x, z).getBlock(localBlock(x), y, localBlock(z));
 		}
 		
 		getBlockId(x, y, z)
 		{
-			return this.getChunkAt(x, y, z).getBlockId(localBlock(x), localBlock(y), localBlock(z));
+			return this.getChunkAt(x, z).getBlockId(localBlock(x), y, localBlock(z));
 		}
 		
 		getBlockSlope(x, y, z)
 		{
-			return this.getChunkAt(x, y, z).getBlockSlope(localBlock(x), localBlock(y), localBlock(z));
+			return this.getChunkAt(x, z).getBlockSlope(localBlock(x), y, localBlock(z));
 		}
 		
 		getBlockInfo(x, y, z)
@@ -11828,35 +11305,29 @@ var generator = (function (exports) {
 		
 		forEachChunk(fn)
 		{
-			for(let z=0, i=0; z < WORLD_CHUNKS_WIDTH; z++) {
+			for(let z=0, i=0; z < WORLD_CHUNKS_W; z++) {
 				let oz = z * CHUNK_WIDTH;
-				
-				for(let y=0; y < WORLD_CHUNKS_WIDTH; y++) {
-					let oy = y * CHUNK_WIDTH;
+			
+				for(let x=0; x < WORLD_CHUNKS_W; x++, i++) {
+					let ox = x * CHUNK_WIDTH;
 					
-					for(let x=0; x < WORLD_CHUNKS_WIDTH; x++, i++) {
-						let ox = x * CHUNK_WIDTH;
-						
-						fn({
-							chunk: this.chunks[i],
-							i, x, y, z, ox, oy, oz,
-						});
-					}
+					fn({
+						chunk: this.chunks[i],
+						i, x, z, ox, oz,
+					});
 				}
 			}
 		}
 		
 		forEachBlock(fn)
 		{
-			this.forEachChunk(({chunk, ox, oy, oz}) => {
+			this.forEachChunk(({chunk, ox, oz}) => {
 				chunk.forEachBlock(({block, i, id, slope, x, y, z}) => {
 					fn({
-						chunk, block, id, slope,
+						chunk, block, id, slope, y,
 						x:  ox + x,
-						y:  oy + y,
 						z:  oz + z,
 						lx: x,
-						ly: y,
 						lz: z,
 					});
 				});
@@ -11865,15 +11336,13 @@ var generator = (function (exports) {
 		
 		forEachBlockPos(fn)
 		{
-			this.forEachChunk(({chunk, ox, oy, oz}) => {
+			this.forEachChunk(({chunk, ox, oz}) => {
 				chunk.forEachBlockPos(({x, y, z, i}) => {
 					fn({
-						chunk,
+						chunk, y,
 						x:  ox + x,
-						y:  oy + y,
 						z:  oz + z,
 						lx: x,
-						ly: y,
 						lz: z,
 					});
 				});
@@ -11882,11 +11351,7 @@ var generator = (function (exports) {
 		
 		setBlock(x, y, z, id = undefined, sl = undefined, addsl = false)
 		{
-			let chunk = this.getChunkAt(x, y, z);
-			
-			if(chunk) {
-				return chunk.setBlock(localBlock(x), localBlock(y), localBlock(z), id, sl, addsl);
-			}
+			this.getChunkAt(x, z).setBlock(localBlock(x), y, localBlock(z), id, sl, addsl);
 		}
 		
 		setBlockSlope(x, y, z, sl)
@@ -11916,8 +11381,8 @@ var generator = (function (exports) {
 		
 		update(delta)
 		{
-			this.forEachChunk(({chunk, x, y, z}) => {
-				chunk.update(this.getChunkVicinity, x, y, z);
+			this.forEachChunk(({chunk, x, z}) => {
+				chunk.update(this.getChunkVicinity, x, z);
 			});
 			
 			this.sun.update(delta);
@@ -11925,14 +11390,32 @@ var generator = (function (exports) {
 		
 		draw(camera)
 		{
-			this.shadowmap.beginDraw();
-			this.shadowmap.endDraw();
+			this.shadowmapTotal.beginDraw();
+			this.drawWorld(this.shadowmapTotal.camera);
+			this.shadowmapTotal.endDraw();
 			
+			this.shadowmapDetail.camera.setPos(camera.pos);
+			this.shadowmapDetail.beginDraw();
+			this.drawWorld(this.shadowmapDetail.camera);
+			this.shadowmapDetail.endDraw();
+			
+			this.drawWorld(camera);
+			//this.quad.draw([0,1,0], camera, this.sun.getSkyDir());
+		}
+		
+		drawWorld(camera)
+		{
 			this.skybox.draw(camera);
 			this.ground.draw(camera);
 			
-			this.forEachChunk(({chunk, ox, oy, oz}) => {
-				chunk.draw([ox, oy, oz], camera, this.sun.getRayDir());
+			this.forEachChunk(({chunk, ox, oz}) => {
+				chunk.draw(
+					[ox, 0, oz],
+					camera,
+					this.sun.getRayDir(),
+					this.shadowmapTotal,
+					this.shadowmapDetail,
+				);
 			});
 			
 			this.models.draw(camera, this.sun.getSkyDir());
@@ -12082,10 +11565,10 @@ var generator = (function (exports) {
 
 		function generateBaseTerrain(world)
 		{
-			world.forEachChunk(({chunk, ox, oy, oz}) => {
+			world.forEachChunk(({chunk, ox, oz}) => {
 				chunk.forEachBlock(({i, x, y, z}) => {
 					let gx = ox + x;
-					let gy = oy + y;
+					let gy = y;
 					let gz = oz + z;
 					let h  = getHeight(gx, gz);
 					
