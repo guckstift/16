@@ -28,7 +28,7 @@ camera.setAspect(display.getAspect());
 body.setPos([0, 2, 0]);
 body.setAcc([0, -gravity, 0]);
 
-//display.on("fps", console.log);
+display.on("fps", console.log);
 
 //let off = 0;
 

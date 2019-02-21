@@ -19,9 +19,10 @@ export class World
 	{
 		this.chunkVicinity = Array(3 ** 2);
 		this.chunks        = Array(WORLD_CHUNKS_COUNT);
-		this.sun           = new Sun(1, 0);
+		this.sun           = new Sun(0.375, 0);
 		this.emptyChunk    = new ChunkDrawable(display);
 		this.trees         = [];
+		this.framecnt      = 0;
 				
 		if(display) {
 			this.getChunkVicinity = this.getChunkVicinity.bind(this);
@@ -191,33 +192,49 @@ export class World
 	
 	draw(camera)
 	{
-		this.shadowmapTotal.beginDraw();
-		this.drawWorld(this.shadowmapTotal.camera);
-		this.shadowmapTotal.endDraw();
+		if(this.framecnt % 16 === 0) {
+			this.shadowmapTotal.beginDraw();
+			this.drawWorld(this.shadowmapTotal.camera, true);
+			this.shadowmapTotal.endDraw();
+		}
 		
-		this.shadowmapDetail.camera.setPos(camera.pos);
-		this.shadowmapDetail.beginDraw();
-		this.drawWorld(this.shadowmapDetail.camera);
-		this.shadowmapDetail.endDraw();
+		if(this.framecnt % 8 === 0) {
+			this.shadowmapDetail.camera.setPos(camera.pos);
+			this.shadowmapDetail.beginDraw();
+			this.drawWorld(this.shadowmapDetail.camera, true);
+			this.shadowmapDetail.endDraw();
+		}
 		
 		this.drawWorld(camera);
+		
+		this.framecnt++;
 	}
 	
-	drawWorld(camera)
+	drawWorld(camera, depthOnly = false)
 	{
-		this.skybox.draw(camera);
+		if(!depthOnly) {
+			this.skybox.draw(camera);
+		}
+		
 		this.ground.draw(camera);
 		
-		this.forEachChunk(({chunk, ox, oz}) => {
-			chunk.draw(
-				[ox, 0, oz],
-				camera,
-				this.sun.getRayDir(),
-				this.shadowmapTotal,
-				this.shadowmapDetail,
-			);
-		});
+		if(depthOnly) {
+			this.forEachChunk(({chunk, ox, oz}) => {
+				chunk.drawDepth([ox, 0, oz], camera);
+			});
+		}
+		else {
+			this.forEachChunk(({chunk, ox, oz}) => {
+				chunk.draw(
+					[ox, 0, oz],
+					camera,
+					this.sun.getRayDir(),
+					this.shadowmapTotal,
+					this.shadowmapDetail,
+				);
+			});
+		}
 		
-		this.models.draw(camera, this.sun.getSkyDir());
+		this.models.draw(camera, this.sun.getSkyDir(), depthOnly);
 	}
 }

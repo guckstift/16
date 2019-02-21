@@ -643,9 +643,10 @@ var generator = (function (exports) {
 			this.display = display;
 			
 			if(display) {
-				this.buf    = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
-				this.shader = display.getShader("chunk", vertSrc, fragSrc);
-				this.atlas  = display.getTexture("gfx/atlas.png");
+				this.buf         = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
+				this.shader      = display.getShader("chunk", vertSrc(false), fragSrc(false));
+				this.depthShader = display.getShader("chunkdepth", vertSrc(true), fragSrc(true));
+				this.atlas       = display.getTexture("gfx/atlas.png");
 			}
 		}
 		
@@ -658,7 +659,23 @@ var generator = (function (exports) {
 			});
 		}
 		
-		draw(pos, camera, sun, shadowmapTotal, shadowmapDetail)
+		drawDepth(pos, camera)
+		{
+			if(this.display && this.buf.getSize() > 0) {
+				let shader = this.depthShader;
+				let buf    = this.buf;
+				let gl     = this.display.gl;
+				
+				shader.use();
+				shader.uniform("proj",  camera.getProjection());
+				shader.uniform("view",  camera.getView());
+				shader.uniform("model", camera.getModel(pos));
+				shader.buffer(buf);
+				shader.triangles();
+			}
+		}
+		
+		draw(pos, camera, sun, shadowmapTotal, shadowmapDetail, drawDepthOnly = false)
 		{
 			if(this.display && this.buf.getSize() > 0) {
 				let shader = this.shader;
@@ -667,7 +684,6 @@ var generator = (function (exports) {
 				
 				shader.use();
 				shader.uniform("sun",       sun);
-				shader.uniform("campos",    camera.pos);
 				shader.uniform("proj",      camera.getProjection());
 				shader.uniform("view",      camera.getView());
 				shader.uniform("model",     camera.getModel(pos));
@@ -682,116 +698,130 @@ var generator = (function (exports) {
 		}
 	}
 
-	const vertSrc = `
-	uniform vec3 sun;
+	const vertSrc = depthOnly => `
+	` + (!depthOnly ? `
+		uniform vec3 sun;
+		uniform mat4 shadowMatTotal;
+		uniform mat4 shadowMatDetail;
+	` : '') + `
 	uniform mat4 proj;
-	uniform mat4 viewModel;
 	uniform mat4 view;
 	uniform mat4 model;
-	uniform mat4 shadowMatTotal;
-	uniform mat4 shadowMatDetail;
-	uniform vec3 campos;
 	
+	` + (!depthOnly ? `
+		attribute vec3 normal;
+		attribute float tile;
+		attribute float occl;
+	` : '') + `
 	attribute vec3 vert;
-	attribute vec3 normal;
-	attribute float tile;
-	attribute float occl;
 	
-	varying vec3 vTranslatedVert;
-	varying vec3 vShadowVertTotal;
-	varying vec3 vShadowVertDetail;
-	varying vec2 uvOffset;
-	varying vec2 planePos;
-	varying float coef;
+	` + (!depthOnly ? `
+		varying vec3 vTranslatedVert;
+		varying vec3 vShadowVertTotal;
+		varying vec3 vShadowVertDetail;
+		varying vec2 uvOffset;
+		varying vec2 planePos;
+		varying float coef;
+	` : '') + `
 	
 	void main()
 	{
 		vec3 correctVert = vert;
-		vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
 		vec4 translatedVert = view * model * vec4(correctVert, 1.0);
 		
-		vec4 shadowVertTotal  = shadowMatTotal * model * vec4(correctVert, 1.0);
-		vec4 shadowVertDetail = shadowMatDetail * model * vec4(correctVert, 1.0);
+		` + (!depthOnly ? `
+			vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
+			vec4 shadowVertTotal  = shadowMatTotal * model * vec4(correctVert, 1.0);
+			vec4 shadowVertDetail = shadowMatDetail * model * vec4(correctVert, 1.0);
+		` : '') + `
 		
 		gl_Position = proj * translatedVert;
 		
-		uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
-		planePos = vec2(0.0);
-		
-		vTranslatedVert   = translatedVert.xyz;
-		vShadowVertTotal  = shadowVertTotal.xyz;
-		vShadowVertDetail = shadowVertDetail.xyz;
-		
-		coef = (
-			0.5 * (1.0 - occl * 0.25) +
-			0.5 * max(0.0, dot(correctNormal, -sun)) * max(0.0, -sun.y)
-		);
-		
-		if(correctNormal.y > 0.125) {
-			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.z);
-		}
-		else if(correctNormal.y < -0.125) {
-			planePos = vec2( 0.0 + correctVert.x,  0.0 + correctVert.z);
-		}
-		else if(correctNormal.x > 0.125) {
-			planePos = vec2( 0.0 + correctVert.z, 16.0 - correctVert.y);
-		}
-		else if(correctNormal.x < -0.125) {
-			planePos = vec2(16.0 - correctVert.z, 16.0 - correctVert.y);
-		}
-		else if(correctNormal.z > 0.125) {
-			planePos = vec2(16.0 - correctVert.x, 16.0 - correctVert.y);
-		}
-		else if(correctNormal.z < -0.125) {
-			planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
-		}
+		` + (!depthOnly ? `
+			uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
+			planePos = vec2(0.0);
+			
+			vTranslatedVert   = translatedVert.xyz;
+			vShadowVertTotal  = shadowVertTotal.xyz;
+			vShadowVertDetail = shadowVertDetail.xyz;
+			
+			coef = (
+				0.5 * (1.0 - occl * 0.25) +
+				0.5 * max(0.0, dot(correctNormal, -sun)) * max(0.0, -sun.y)
+			);
+			
+			if(correctNormal.y > 0.125) {
+				planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.z);
+			}
+			else if(correctNormal.y < -0.125) {
+				planePos = vec2( 0.0 + correctVert.x,  0.0 + correctVert.z);
+			}
+			else if(correctNormal.x > 0.125) {
+				planePos = vec2( 0.0 + correctVert.z, 16.0 - correctVert.y);
+			}
+			else if(correctNormal.x < -0.125) {
+				planePos = vec2(16.0 - correctVert.z, 16.0 - correctVert.y);
+			}
+			else if(correctNormal.z > 0.125) {
+				planePos = vec2(16.0 - correctVert.x, 16.0 - correctVert.y);
+			}
+			else if(correctNormal.z < -0.125) {
+				planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
+			}
+		` : '') + `
 	}
 `;
 
-	const fragSrc = `
-	uniform sampler2D atlas;
-	uniform sampler2D depthTotal;
-	uniform sampler2D depthDetail;
-	uniform vec3 sun;
-	
-	varying vec3 vTranslatedVert;
-	varying vec3 vShadowVertTotal;
-	varying vec3 vShadowVertDetail;
-	varying vec2 uvOffset;
-	varying vec2 planePos;
-	varying float coef;
+	const fragSrc = depthOnly => `
+	` + (!depthOnly ? `
+		uniform sampler2D atlas;
+		uniform sampler2D depthTotal;
+		uniform sampler2D depthDetail;
+		uniform vec3 sun;
+		
+		varying vec3 vTranslatedVert;
+		varying vec3 vShadowVertTotal;
+		varying vec3 vShadowVertDetail;
+		varying vec2 uvOffset;
+		varying vec2 planePos;
+		varying float coef;
+	` : '') + `
 	
 	void main()
 	{
-		float bias = 1.0 / 4096.0;
-		float fog = min(1.0, 16.0 / length(vTranslatedVert));
-		vec2 uv = (uvOffset + fract(planePos)) / 16.0;
-		float depthOccl = 0.0;
+		gl_FragColor = vec4(1);
 		
-		if(
-			vShadowVertDetail.x >= -1.0 && vShadowVertDetail.x <= +1.0 &&
-			vShadowVertDetail.y >= -1.0 && vShadowVertDetail.y <= +1.0 &&
-			vShadowVertDetail.z >= -1.0 && vShadowVertDetail.z <= +1.0
-		) {
-			vec2 shadowUv = (vShadowVertDetail.xy + vec2(1, -1)) * 0.5;
-			float depthVal = texture2D(depthDetail, shadowUv).r * 2.0 - 1.0;
+		` + (!depthOnly ? `
+			float bias = 1.0 / 4096.0;
+			float fog = min(1.0, 16.0 / length(vTranslatedVert));
+			vec2 uv = (uvOffset + fract(planePos)) / 16.0;
+			float depthOccl = 0.0;
 			
-			depthOccl = depthVal < vShadowVertDetail.z - bias ? 1.0 : 0.0;
-		}
-		else {
-			vec2 shadowUv = (vShadowVertTotal.xy + vec2(1, -1)) * 0.5;
-			float depthVal = texture2D(depthTotal, shadowUv).r * 2.0 - 1.0;
+			if(
+				vShadowVertDetail.x >= -1.0 && vShadowVertDetail.x <= +1.0 &&
+				vShadowVertDetail.y >= -1.0 && vShadowVertDetail.y <= +1.0 &&
+				vShadowVertDetail.z >= -1.0 && vShadowVertDetail.z <= +1.0
+			) {
+				vec2 shadowUv = (vShadowVertDetail.xy + vec2(1, -1)) * 0.5;
+				float depthVal = texture2D(depthDetail, shadowUv).r * 2.0 - 1.0;
+				
+				depthOccl = depthVal < vShadowVertDetail.z - bias ? 1.0 : 0.0;
+			}
+			else {
+				vec2 shadowUv = (vShadowVertTotal.xy + vec2(1, -1)) * 0.5;
+				float depthVal = texture2D(depthTotal, shadowUv).r * 2.0 - 1.0;
+				
+				depthOccl = depthVal < vShadowVertTotal.z - bias ? 1.0 : 0.0;
+			}
 			
-			depthOccl = depthVal < vShadowVertTotal.z - bias ? 1.0 : 0.0;
-		}
-		
-		depthOccl *= max(0.0, -sun.y);
-		
-		gl_FragColor      = texture2D(atlas, uv);
-		gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
-		
-		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
+			depthOccl *= max(0.0, -sun.y);
+			
+			gl_FragColor      = texture2D(atlas, uv);
+			gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
+			
+			gl_FragColor.rgb *= fog;
+			gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
+		` : '') + `
 	}
 `;
 
@@ -1643,11 +1673,35 @@ var generator = (function (exports) {
 				tex = display.getTexture(tex);
 			}
 			
-			this.tex     = tex;
-			this.display = display;
-			this.buf     = display.Buffer("static", layout$1, data);
-			this.ibuf    = display.Buffer("static", "index", indices);
-			this.shader  = display.getShader("model", modelVertSrc, modelFragSrc);
+			this.tex         = tex;
+			this.display     = display;
+			this.buf         = display.Buffer("static", layout$1, data);
+			this.ibuf        = display.Buffer("static", "index", indices);
+			this.shader      = display.getShader("model", modelVertSrc(true), modelFragSrc(true));
+			this.depthShader = display.getShader("modeldepth", modelVertSrc(false), modelFragSrc(false));
+		}
+		
+		drawDepth(pos, camera, instances = null)
+		{
+			let shader = this.depthShader;
+			let buf    = this.buf;
+			
+			shader.use();
+			shader.texture("tex",     this.tex);
+			shader.uniform("proj",    camera.getProjection());
+			shader.uniform("view",    camera.getView());
+			shader.uniform("model",   camera.getModel(pos));
+			shader.indices(this.ibuf);
+			shader.buffer(buf);
+			
+			if(instances) {
+				shader.instancebuffer(instances);
+			}
+			else {
+				shader.constattrib("ipos", pos);
+			}
+			
+			shader.triangles();
 		}
 		
 		draw(pos, camera, sun, instances = null)
@@ -1678,54 +1732,68 @@ var generator = (function (exports) {
 		}
 	}
 
-	const modelVertSrc = `
+	const modelVertSrc = withColor => `
+	` + (withColor ? `
+		uniform vec3 sun;
+		uniform float diff;
+	` : '') + `
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
-	uniform vec3 sun;
-	uniform float diff;
 	
+	` + (withColor ? `
+		attribute vec3 norm;
+	` : '') + `
+	attribute vec2 uv;
 	attribute vec3 ipos;
 	attribute vec3 pos;
-	attribute vec3 norm;
-	attribute vec2 uv;
 	
-	varying vec4 vTransPos;
+	` + (withColor ? `
+		varying float vCoef;
+	` : '') + `
 	varying vec2 vUv;
-	varying float vCoef;
+	varying vec4 vTransPos;
 	
 	void main()
 	{
 		vTransPos   = view * model * vec4(ipos + pos, 1);
 		gl_Position = proj * vTransPos;
-		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
 		vUv         = uv;
+		
+		` + (withColor ? `
+			vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
+		` : '') + `
 	}
 `;
 
-	const modelFragSrc = `
+	const modelFragSrc = withColor => `
 	uniform sampler2D tex;
-	uniform vec3 fogCol;
-	uniform vec3 sun;
-	uniform float fogDist;
+	` + (withColor ? `
+		uniform vec3 fogCol;
+		uniform vec3 sun;
+		uniform float fogDist;
+		
+		varying vec4 vTransPos;
+		varying float vCoef;
+	` : '') + `
 	
-	varying vec4 vTransPos;
 	varying vec2 vUv;
-	varying float vCoef;
 	
 	void main()
 	{
-		float fog = min(1.0, fogDist / length(vTransPos.xyz));
-		
 		gl_FragColor      = texture2D(tex, vUv);
 		
 		if(gl_FragColor.a == 0.0) {
 			discard;
 		}
 		
-		gl_FragColor.rgb *= vCoef;
-		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
+		` + (withColor ? `
+			float fog = min(1.0, fogDist / length(vTransPos.xyz));
+			
+			gl_FragColor.rgb *= vCoef;
+			gl_FragColor.rgb *= fog;
+			gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
+		` : '') + `
 	}
 `;
 
@@ -1760,9 +1828,14 @@ var generator = (function (exports) {
 			}
 		}
 		
-		draw(camera, sun)
+		draw(camera, sun, depthOnly = false)
 		{
-			this.model.draw([0.5, 0, 0.5], camera, sun, this.buf);
+			if(depthOnly) {
+				this.model.drawDepth([0.5, 0, 0.5], camera, this.buf);
+			}
+			else {
+				this.model.draw([0.5, 0, 0.5], camera, sun, this.buf);
+			}
 		}
 	}
 
@@ -11239,9 +11312,10 @@ var generator = (function (exports) {
 		{
 			this.chunkVicinity = Array(3 ** 2);
 			this.chunks        = Array(WORLD_CHUNKS_COUNT);
-			this.sun           = new Sun(1, 0);
+			this.sun           = new Sun(0.375, 0);
 			this.emptyChunk    = new ChunkDrawable(display);
 			this.trees         = [];
+			this.framecnt      = 0;
 					
 			if(display) {
 				this.getChunkVicinity = this.getChunkVicinity.bind(this);
@@ -11411,34 +11485,50 @@ var generator = (function (exports) {
 		
 		draw(camera)
 		{
-			this.shadowmapTotal.beginDraw();
-			this.drawWorld(this.shadowmapTotal.camera);
-			this.shadowmapTotal.endDraw();
+			if(this.framecnt % 16 === 0) {
+				this.shadowmapTotal.beginDraw();
+				this.drawWorld(this.shadowmapTotal.camera, true);
+				this.shadowmapTotal.endDraw();
+			}
 			
-			this.shadowmapDetail.camera.setPos(camera.pos);
-			this.shadowmapDetail.beginDraw();
-			this.drawWorld(this.shadowmapDetail.camera);
-			this.shadowmapDetail.endDraw();
+			if(this.framecnt % 8 === 0) {
+				this.shadowmapDetail.camera.setPos(camera.pos);
+				this.shadowmapDetail.beginDraw();
+				this.drawWorld(this.shadowmapDetail.camera, true);
+				this.shadowmapDetail.endDraw();
+			}
 			
 			this.drawWorld(camera);
+			
+			this.framecnt++;
 		}
 		
-		drawWorld(camera)
+		drawWorld(camera, depthOnly = false)
 		{
-			this.skybox.draw(camera);
+			if(!depthOnly) {
+				this.skybox.draw(camera);
+			}
+			
 			this.ground.draw(camera);
 			
-			this.forEachChunk(({chunk, ox, oz}) => {
-				chunk.draw(
-					[ox, 0, oz],
-					camera,
-					this.sun.getRayDir(),
-					this.shadowmapTotal,
-					this.shadowmapDetail,
-				);
-			});
+			if(depthOnly) {
+				this.forEachChunk(({chunk, ox, oz}) => {
+					chunk.drawDepth([ox, 0, oz], camera);
+				});
+			}
+			else {
+				this.forEachChunk(({chunk, ox, oz}) => {
+					chunk.draw(
+						[ox, 0, oz],
+						camera,
+						this.sun.getRayDir(),
+						this.shadowmapTotal,
+						this.shadowmapDetail,
+					);
+				});
+			}
 			
-			this.models.draw(camera, this.sun.getSkyDir());
+			this.models.draw(camera, this.sun.getSkyDir(), depthOnly);
 		}
 	}
 

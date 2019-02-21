@@ -10,11 +10,35 @@ export class Model
 			tex = display.getTexture(tex);
 		}
 		
-		this.tex     = tex;
-		this.display = display;
-		this.buf     = display.Buffer("static", layout, data);
-		this.ibuf    = display.Buffer("static", "index", indices);
-		this.shader  = display.getShader("model", modelVertSrc, modelFragSrc);
+		this.tex         = tex;
+		this.display     = display;
+		this.buf         = display.Buffer("static", layout, data);
+		this.ibuf        = display.Buffer("static", "index", indices);
+		this.shader      = display.getShader("model", modelVertSrc(true), modelFragSrc(true));
+		this.depthShader = display.getShader("modeldepth", modelVertSrc(false), modelFragSrc(false));
+	}
+	
+	drawDepth(pos, camera, instances = null)
+	{
+		let shader = this.depthShader;
+		let buf    = this.buf;
+		
+		shader.use();
+		shader.texture("tex",     this.tex);
+		shader.uniform("proj",    camera.getProjection());
+		shader.uniform("view",    camera.getView());
+		shader.uniform("model",   camera.getModel(pos));
+		shader.indices(this.ibuf);
+		shader.buffer(buf);
+		
+		if(instances) {
+			shader.instancebuffer(instances);
+		}
+		else {
+			shader.constattrib("ipos", pos);
+		}
+		
+		shader.triangles();
 	}
 	
 	draw(pos, camera, sun, instances = null)
@@ -45,53 +69,67 @@ export class Model
 	}
 }
 
-export const modelVertSrc = `
+export const modelVertSrc = withColor => `
+	` + (withColor ? `
+		uniform vec3 sun;
+		uniform float diff;
+	` : '') + `
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
-	uniform vec3 sun;
-	uniform float diff;
 	
+	` + (withColor ? `
+		attribute vec3 norm;
+	` : '') + `
+	attribute vec2 uv;
 	attribute vec3 ipos;
 	attribute vec3 pos;
-	attribute vec3 norm;
-	attribute vec2 uv;
 	
-	varying vec4 vTransPos;
+	` + (withColor ? `
+		varying float vCoef;
+	` : '') + `
 	varying vec2 vUv;
-	varying float vCoef;
+	varying vec4 vTransPos;
 	
 	void main()
 	{
 		vTransPos   = view * model * vec4(ipos + pos, 1);
 		gl_Position = proj * vTransPos;
-		vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
 		vUv         = uv;
+		
+		` + (withColor ? `
+			vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
+		` : '') + `
 	}
 `;
 
-export const modelFragSrc = `
+export const modelFragSrc = withColor => `
 	uniform sampler2D tex;
-	uniform vec3 fogCol;
-	uniform vec3 sun;
-	uniform float fogDist;
+	` + (withColor ? `
+		uniform vec3 fogCol;
+		uniform vec3 sun;
+		uniform float fogDist;
+		
+		varying vec4 vTransPos;
+		varying float vCoef;
+	` : '') + `
 	
-	varying vec4 vTransPos;
 	varying vec2 vUv;
-	varying float vCoef;
 	
 	void main()
 	{
-		float fog = min(1.0, fogDist / length(vTransPos.xyz));
-		
 		gl_FragColor      = texture2D(tex, vUv);
 		
 		if(gl_FragColor.a == 0.0) {
 			discard;
 		}
 		
-		gl_FragColor.rgb *= vCoef;
-		gl_FragColor.rgb *= fog;
-		gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
+		` + (withColor ? `
+			float fog = min(1.0, fogDist / length(vTransPos.xyz));
+			
+			gl_FragColor.rgb *= vCoef;
+			gl_FragColor.rgb *= fog;
+			gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
+		` : '') + `
 	}
 `;
