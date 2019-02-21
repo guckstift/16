@@ -759,7 +759,7 @@ var generator = (function (exports) {
 		
 		depthOccl *= max(0.0, -sun.y);
 		
-		gl_FragColor      = vec4(1);//texture2D(atlas, uv);
+		gl_FragColor      = texture2D(atlas, uv);
 		gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
 		
 		gl_FragColor.rgb *= fog;
@@ -11542,8 +11542,6 @@ var generator = (function (exports) {
 			console.log("generateSlopes time:", delta);
 			now = performance.now();
 			
-			//generateTrees(world);
-			
 			return world;
 		}
 
@@ -11566,28 +11564,24 @@ var generator = (function (exports) {
 		function generateBaseTerrain(world)
 		{
 			world.forEachChunk(({chunk, ox, oz}) => {
-				chunk.forEachBlock(({i, x, y, z}) => {
-					let gx = ox + x;
-					let gy = y;
-					let gz = oz + z;
-					let h  = getHeight(gx, gz);
-					
-					if(gy < h) {
-						chunkbuf[i] = 2;
+				for(let z=0, i=0; z < CHUNK_WIDTH; z++) {
+					for(let x=0; x < CHUNK_WIDTH; x++, i += CHUNK_HEIGHT) {
+						let gx = ox + x;
+						let gz = oz + z;
+						let h  = getHeight(gx, gz);
+						
+						chunkbuf.fill(2, i,     i + h);
+						chunkbuf.fill(0, i + h, i + CHUNK_HEIGHT);
+						chunkbuf[i + h] = 3;
+						
+						if(Math.random() < 0.001 * h) {
+							chunkbuf[i + h + 1] = 4;
+							world.trees.push(gx);
+							world.trees.push(h + 1);
+							world.trees.push(gz);
+						}
 					}
-					else if(gy === h) {
-						chunkbuf[i] = 3;
-					}
-					else if(gy === h + 1 && Math.random() < 0.001 * h) {
-						chunkbuf[i] = 4;
-						world.trees.push(gx);
-						world.trees.push(gy);
-						world.trees.push(gz);
-					}
-					else {
-						chunkbuf[i] = 0;
-					}
-				});
+				}
 				
 				chunk.packFrom(chunkbuf);
 			});
