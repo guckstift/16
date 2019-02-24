@@ -31,13 +31,13 @@ export class ModelBatch
 		}
 	}
 	
-	draw(camera, sun, depthOnly = false)
+	draw(camera, sun, shadows, depthOnly = false)
 	{
 		if(depthOnly) {
 			this.model.drawDepth([0.5, 0, 0.5], camera, this.buf);
 		}
 		else {
-			this.model.draw([0.5, 0, 0.5], camera, sun, this.buf);
+			this.model.draw([0.5, 0, 0.5], camera, sun, shadows, this.buf);
 		}
 	}
 }

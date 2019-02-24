@@ -116,18 +116,18 @@ export class Display extends Dom
 		return this.texcache[url];
 	}
 	
-	getShader(id, vertSrc, fragSrc)
+	getShader(id, vertSrc, fragSrc, opts)
 	{
 		if(!this.shadercache[id]) {
-			this.shadercache[id] = this.Shader(vertSrc, fragSrc);
+			this.shadercache[id] = this.Shader(vertSrc, fragSrc, opts);
 		}
 		
 		return this.shadercache[id];
 	}
 	
-	Shader(vertSrc, fragSrc)
+	Shader(vertSrc, fragSrc, opts)
 	{
-		return new Shader(this, vertSrc, fragSrc);
+		return new Shader(this, vertSrc, fragSrc, opts);
 	}
 	
 	Buffer(usage, layout, data)

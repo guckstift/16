@@ -4,7 +4,7 @@ import {getBlockInfo, isSolidBlock, isVisibleBlock, getBlockTile} from "./blocks
 import {Sun} from "./Sun.js";
 import {Skybox} from "./Skybox.js";
 import {Ground} from "./Ground.js";
-import {ShadowMap} from "./ShadowMap.js";
+import {ShadowCascade} from "./ShadowCascade.js";
 import {Model} from "./Model.js";
 import {ModelBatch} from "./ModelBatch.js";
 import {tree1} from "../models/tree1.js";
@@ -22,18 +22,19 @@ export class World
 		this.sun           = new Sun(0.375, 0);
 		this.emptyChunk    = new ChunkDrawable(display);
 		this.trees         = [];
-		this.framecnt      = 0;
 				
 		if(display) {
+			this.shadowDrawFn     = this.shadowDrawFn.bind(this);
 			this.getChunkVicinity = this.getChunkVicinity.bind(this);
 			this.isSolidBlock     = this.isSolidBlock.bind(this);
 			this.getBlockSlope    = this.getBlockSlope.bind(this);
 			this.skybox           = new Skybox(display, this.sun);
 			this.ground           = new Ground(display, this.sun);
-			this.shadowmapTotal   = new ShadowMap(display, this.sun, 444);
-			this.shadowmapDetail  = new ShadowMap(display, this.sun, 16);
 			
-			this.shadowmapTotal.camera.setPos([128, 128, 128]);
+			this.shadows = new ShadowCascade(display, this.sun, this.shadowDrawFn);
+			this.shadows.addLayer(256, 2048, 32, true);
+			this.shadows.addLayer(64,  1024, 16, true);
+			this.shadows.addLayer(16,  512,  8,  true);
 			
 			this.models = new ModelBatch(
 				new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
@@ -190,24 +191,15 @@ export class World
 		this.sun.update(delta);
 	}
 	
+	shadowDrawFn(camera)
+	{
+		this.drawWorld(camera, true);
+	}
+	
 	draw(camera)
 	{
-		if(this.framecnt % 16 === 0) {
-			this.shadowmapTotal.beginDraw();
-			this.drawWorld(this.shadowmapTotal.camera, true);
-			this.shadowmapTotal.endDraw();
-		}
-		
-		if(this.framecnt % 8 === 0) {
-			this.shadowmapDetail.camera.setPos(camera.pos);
-			this.shadowmapDetail.beginDraw();
-			this.drawWorld(this.shadowmapDetail.camera, true);
-			this.shadowmapDetail.endDraw();
-		}
-		
+		this.shadows.update(camera.pos);
 		this.drawWorld(camera);
-		
-		this.framecnt++;
 	}
 	
 	drawWorld(camera, depthOnly = false)
@@ -229,12 +221,11 @@ export class World
 					[ox, 0, oz],
 					camera,
 					this.sun.getRayDir(),
-					this.shadowmapTotal,
-					this.shadowmapDetail,
+					this.shadows,
 				);
 			});
 		}
 		
-		this.models.draw(camera, this.sun.getSkyDir(), depthOnly);
+		this.models.draw(camera, this.sun.getSkyDir(), this.shadows, depthOnly);
 	}
 }

@@ -1,11 +1,33 @@
 export class Shader
 {
-	constructor(display, vertSrc, fragSrc)
+	constructor(display, vertSrc, fragSrc, opts = {})
 	{
-		let gl   = display.gl;
-		let vert = gl.createShader(gl.VERTEX_SHADER);
-		let frag = gl.createShader(gl.FRAGMENT_SHADER);
-		let prog = gl.createProgram();
+		let gl    = display.gl;
+		let vert  = gl.createShader(gl.VERTEX_SHADER);
+		let frag  = gl.createShader(gl.FRAGMENT_SHADER);
+		let prog  = gl.createProgram();
+		let regex = null;
+		
+		for(let prop in opts) {
+			let val = opts[prop];
+			
+			if(typeof val === "boolean") {
+				if(val) {
+					regex = new RegExp("(<" + prop + ">)|(</" + prop + ">)", "g");
+				}
+				else {
+					regex = new RegExp("<" + prop + ">(.|\\s)*?</" + prop + ">", "gm");
+				}
+				
+				vertSrc = vertSrc.replace(regex, "");
+				fragSrc = fragSrc.replace(regex, "");
+			}
+			else {
+				regex   = new RegExp("<" + prop + ">", "g");
+				vertSrc = vertSrc.replace(regex, val);
+				fragSrc = fragSrc.replace(regex, val);
+			}
+		}
 
 		gl.shaderSource(vert, "precision highp float;\n\n" + vertSrc);
 		gl.shaderSource(frag, "precision highp float;\n\n" + fragSrc);
@@ -176,6 +198,13 @@ export class Shader
 		}
 	}
 	
+	uniforms(name, values)
+	{
+		values.forEach((value, i) => {
+			this.uniform(name + "[" + i + "]", value);
+		});
+	}
+	
 	texture(name, tex)
 	{
 		let gl = this.gl;
@@ -185,6 +214,13 @@ export class Shader
 		gl.uniform1i(this.getVar(name), this.texunit);
 		
 		this.texunit++;
+	}
+	
+	textures(name, texs)
+	{
+		texs.forEach((tex, i) => {
+			this.texture(name + "[" + i + "]", tex);
+		});
 	}
 	
 	triangles()

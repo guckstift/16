@@ -30,4 +30,14 @@ export class ShadowMap
 	{
 		return this.camera.getProjView();
 	}
+	
+	getCamera()
+	{
+		return this.camera;
+	}
+	
+	getDepthTex()
+	{
+		return this.depthtex;
+	}
 }

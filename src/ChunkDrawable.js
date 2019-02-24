@@ -1,4 +1,5 @@
 import {ChunkMesh, CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
+import {shadowVertSrc, shadowFragSrc} from "./glsl.js";
 
 export class ChunkDrawable extends ChunkMesh
 {
@@ -9,10 +10,16 @@ export class ChunkDrawable extends ChunkMesh
 		this.display = display;
 		
 		if(display) {
-			this.buf         = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
-			this.shader      = display.getShader("chunk", vertSrc(false), fragSrc(false));
-			this.depthShader = display.getShader("chunkdepth", vertSrc(true), fragSrc(true));
-			this.atlas       = display.getTexture("gfx/atlas.png");
+			this.buf   = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
+			this.atlas = display.getTexture("gfx/atlas.png");
+
+			this.shader_c = display.getShader(
+				"chunk_c", vertSrc, fragSrc, {color: true, layers: 3, bias: 1 / 4096}
+			);
+			
+			this.shader_d = display.getShader(
+				"chunk_d", vertSrc, fragSrc, {color: false}
+			);
 		}
 	}
 	
@@ -28,7 +35,7 @@ export class ChunkDrawable extends ChunkMesh
 	drawDepth(pos, camera)
 	{
 		if(this.display && this.buf.getSize() > 0) {
-			let shader = this.depthShader;
+			let shader = this.shader_d;
 			let buf    = this.buf;
 			let gl     = this.display.gl;
 			
@@ -41,75 +48,67 @@ export class ChunkDrawable extends ChunkMesh
 		}
 	}
 	
-	draw(pos, camera, sun, shadowmapTotal, shadowmapDetail, drawDepthOnly = false)
+	draw(pos, camera, sun, shadows)
 	{
 		if(this.display && this.buf.getSize() > 0) {
-			let shader = this.shader;
+			let shader = this.shader_c;
 			let buf    = this.buf;
 			let gl     = this.display.gl;
 			
 			shader.use();
-			shader.uniform("sun",       sun);
-			shader.uniform("proj",      camera.getProjection());
-			shader.uniform("view",      camera.getView());
-			shader.uniform("model",     camera.getModel(pos));
-			shader.uniform("shadowMatTotal",  shadowmapTotal.getMatrix());
-			shader.uniform("shadowMatDetail", shadowmapDetail.getMatrix());
-			shader.texture("atlas",     this.atlas);
-			shader.texture("depthTotal", shadowmapTotal.depthtex);
-			shader.texture("depthDetail", shadowmapDetail.depthtex);
+			shader.uniform("sun",         sun);
+			shader.uniform("proj",        camera.getProjection());
+			shader.uniform("view",        camera.getView());
+			shader.uniform("model",       camera.getModel(pos));
+			shader.texture("atlas",       this.atlas);
+			shader.uniforms("shadowMats", shadows.getMatrices());
+			shader.textures("depths",     shadows.getDepthTexs());
 			shader.buffer(buf);
 			shader.triangles();
 		}
 	}
 }
 
-const vertSrc = depthOnly => `
-	` + (!depthOnly ? `
+const vertSrc = shadowVertSrc + `
+	<color>
 		uniform vec3 sun;
-		uniform mat4 shadowMatTotal;
-		uniform mat4 shadowMatDetail;
-	` : '') + `
+	</color>
+	
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
 	
-	` + (!depthOnly ? `
+	<color>
 		attribute vec3 normal;
 		attribute float tile;
 		attribute float occl;
-	` : '') + `
+	</color>
+	
 	attribute vec3 vert;
 	
-	` + (!depthOnly ? `
+	<color>
 		varying vec3 vTranslatedVert;
-		varying vec3 vShadowVertTotal;
-		varying vec3 vShadowVertDetail;
 		varying vec2 uvOffset;
 		varying vec2 planePos;
 		varying float coef;
-	` : '') + `
+	</color>
 	
 	void main()
 	{
 		vec3 correctVert = vert;
 		vec4 translatedVert = view * model * vec4(correctVert, 1.0);
 		
-		` + (!depthOnly ? `
-			vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
-			vec4 shadowVertTotal  = shadowMatTotal * model * vec4(correctVert, 1.0);
-			vec4 shadowVertDetail = shadowMatDetail * model * vec4(correctVert, 1.0);
-		` : '') + `
-		
 		gl_Position = proj * translatedVert;
 		
-		` + (!depthOnly ? `
+		<color>
+			vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
+			
 			uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
 			planePos = vec2(0.0);
 			
-			vTranslatedVert   = translatedVert.xyz;
-			vShadowVertTotal  = shadowVertTotal.xyz;
-			vShadowVertDetail = shadowVertDetail.xyz;
+			setShadowVerts(model, correctVert);
+			
+			vTranslatedVert = translatedVert.xyz;
 			
 			coef = (
 				0.5 * (1.0 - occl * 0.25) +
@@ -134,59 +133,34 @@ const vertSrc = depthOnly => `
 			else if(correctNormal.z < -0.125) {
 				planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
 			}
-		` : '') + `
+		</color>
 	}
 `;
 
-const fragSrc = depthOnly => `
-	` + (!depthOnly ? `
+const fragSrc = shadowFragSrc + `
+	<color>
 		uniform sampler2D atlas;
-		uniform sampler2D depthTotal;
-		uniform sampler2D depthDetail;
 		uniform vec3 sun;
 		
 		varying vec3 vTranslatedVert;
-		varying vec3 vShadowVertTotal;
-		varying vec3 vShadowVertDetail;
 		varying vec2 uvOffset;
 		varying vec2 planePos;
 		varying float coef;
-	` : '') + `
+	</color>
 	
 	void main()
 	{
 		gl_FragColor = vec4(1);
 		
-		` + (!depthOnly ? `
-			float bias = 1.0 / 4096.0;
+		<color>
 			float fog = min(1.0, 16.0 / length(vTranslatedVert));
 			vec2 uv = (uvOffset + fract(planePos)) / 16.0;
-			float depthOccl = 0.0;
-			
-			if(
-				vShadowVertDetail.x >= -1.0 && vShadowVertDetail.x <= +1.0 &&
-				vShadowVertDetail.y >= -1.0 && vShadowVertDetail.y <= +1.0 &&
-				vShadowVertDetail.z >= -1.0 && vShadowVertDetail.z <= +1.0
-			) {
-				vec2 shadowUv = (vShadowVertDetail.xy + vec2(1, -1)) * 0.5;
-				float depthVal = texture2D(depthDetail, shadowUv).r * 2.0 - 1.0;
-				
-				depthOccl = depthVal < vShadowVertDetail.z - bias ? 1.0 : 0.0;
-			}
-			else {
-				vec2 shadowUv = (vShadowVertTotal.xy + vec2(1, -1)) * 0.5;
-				float depthVal = texture2D(depthTotal, shadowUv).r * 2.0 - 1.0;
-				
-				depthOccl = depthVal < vShadowVertTotal.z - bias ? 1.0 : 0.0;
-			}
-			
-			depthOccl *= max(0.0, -sun.y);
+			float depthOccl = getShadowOccl() * max(0.0, -sun.y);
 			
 			gl_FragColor      = texture2D(atlas, uv);
 			gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
-			
 			gl_FragColor.rgb *= fog;
 			gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
-		` : '') + `
+		</color>
 	}
 `;

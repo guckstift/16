@@ -28,27 +28,16 @@ camera.setAspect(display.getAspect());
 body.setPos([0, 2, 0]);
 body.setAcc([0, -gravity, 0]);
 
-display.on("fps", console.log);
-
-//let off = 0;
+//display.on("fps", console.log);
 
 display.on("frame", e => {
-	/*
-	if(off === 0) {
-		off = e.delta;
-	}
-	else {
-		e.delta += off;
-		off = 0;
-		*/
-		controller.update(runspeed, jumpspeed, e.delta);
-		body.update(e.delta);
-		camera.update();
-		world.update(e.delta);
-		
-		display.renderToCanvas();
-		world.draw(camera);
-	//}
+	controller.update(runspeed, jumpspeed, e.delta);
+	body.update(e.delta);
+	camera.update();
+	world.update(e.delta);
+	
+	display.renderToCanvas();
+	world.draw(camera);
 });
 
 input.on("resize", e => {
