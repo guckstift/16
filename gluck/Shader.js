@@ -225,18 +225,29 @@ export class Shader
 	
 	triangles()
 	{
-		let gl = this.gl;
+		this.draw(this.gl.TRIANGLES);
+	}
+	
+	lines(lineWidth = 1)
+	{
+		this.gl.lineWidth(lineWidth);
+		this.draw(this.gl.LINES);
+	}
+	
+	draw(glmode)
+	{
+		let gl   = this.gl;
 		let glia = this.glia;
 		
 		if(this.instnum === null) {
 			if(this.ibuf) {
 				if(this.ibuf.getVerts() > 0) {
-					gl.drawElements(gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0);
+					gl.drawElements(glmode, this.ibuf.getVerts(), this.ibuf.getType(), 0);
 				}
 			}
 			else {
 				if(this.verts > 0) {
-					gl.drawArrays(gl.TRIANGLES, 0, this.verts);
+					gl.drawArrays(glmode, 0, this.verts);
 				}
 			}
 		}
@@ -244,13 +255,13 @@ export class Shader
 			if(this.ibuf) {
 				if(this.ibuf.getVerts() > 0) {
 					glia.drawElementsInstancedANGLE(
-						gl.TRIANGLES, this.ibuf.getVerts(), this.ibuf.getType(), 0, this.instnum
+						glmode, this.ibuf.getVerts(), this.ibuf.getType(), 0, this.instnum
 					);
 				}
 			}
 			else {
 				if(this.verts > 0) {
-					glia.drawArraysInstancedANGLE(gl.TRIANGLES, 0, this.verts, this.instnum);
+					glia.drawArraysInstancedANGLE(glmode, 0, this.verts, this.instnum);
 				}
 			}
 		}

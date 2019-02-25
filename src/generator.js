@@ -12,7 +12,29 @@ export function generateWorld(display, fn)
 	world    = new World(display);
 	callback = fn;
 	
-	worker.postMessage("start");
+	worker.postMessage({cmd: "generate"});
+	
+	return world;
+}
+
+export function loadWorld(display, src, fn)
+{
+	world    = new World(display);
+	callback = fn;
+	
+	let img    = document.createElement("img");
+	let canvas = document.createElement("canvas");
+	
+	img.onload = () => {
+		canvas.width  = img.width;
+		canvas.height = img.height;
+		let ctx = canvas.getContext("2d");
+		ctx.drawImage(img, 0, 0);
+		let imgData = ctx.getImageData(0, 0, img.width, img.height);
+		worker.postMessage({cmd: "load", pixels: imgData.data});
+	};
+	
+	img.src = "worlds/" + src;
 	
 	return world;
 }
@@ -36,8 +58,49 @@ else {
 	let chunkbuf  = new Uint16Array(CHUNK_SIZE);
 	
 	onmessage = e => {
-		postMessage(generateWorldImpl());
+		if(e.data.cmd === "generate") {
+			postMessage(generateWorldImpl());
+		}
+		else if(e.data.cmd === "load") {
+			postMessage(loadWorldImpl(e.data.pixels));
+		}
 	};
+	
+	function loadWorldImpl(pixels)
+	{
+		let world = new World();
+		let now   = performance.now();
+		let delta = 0;
+		
+		loadHeightmap(pixels);
+		
+		delta = performance.now() - now;
+		console.log("loadHeightmap time:", delta);
+		now = performance.now();
+		
+		generateBaseTerrain(world);
+		
+		delta = performance.now() - now;
+		console.log("generateBaseTerrain time:", delta);
+		now = performance.now();
+		
+		generateSlopes(world);
+		
+		delta = performance.now() - now;
+		console.log("generateSlopes time:", delta);
+		now = performance.now();
+		
+		return world;
+	}
+	
+	function loadHeightmap(pixels)
+	{
+		for(let z=0, i=0; z < WORLD_WIDTH; z++) {
+			for(let x=0; x < WORLD_WIDTH; x++, i++) {
+				heightmap[i] = pixels[i * 4];
+			}
+		}
+	}
 
 	function generateWorldImpl()
 	{

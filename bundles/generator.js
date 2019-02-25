@@ -76,29 +76,34 @@ var generator = (function (exports) {
 	const blocks = [
 		{
 			name: "air",
+			occluding: false,
 			solid: false,
 			visible: false,
 		},
 		{
 			name: "stone",
+			occluding: true,
 			solid: true,
 			visible: true,
 			tiles: [0, 0, 0, 0, 0, 0],
 		},
 		{
 			name: "soil",
+			occluding: true,
 			solid: true,
 			visible: true,
 			tiles: [1, 1, 1, 1, 1, 1],
 		},
 		{
 			name: "grass",
+			occluding: true,
 			solid: true,
 			visible: true,
 			tiles: [3, 3, 2, 1, 3, 3],
 		},
 		{
 			name: "object",
+			occluding: false,
 			solid: true,
 			visible: false,
 		},
@@ -634,6 +639,51 @@ var generator = (function (exports) {
 		});
 	}
 
+	const shadowVertSrc = `
+	<color>
+		const int layers = <layers>;
+		
+		uniform mat4 shadowMats[layers];
+		
+		varying vec3 vShadowVerts[layers];
+	
+		void setShadowVerts(mat4 model, vec3 pos)
+		{
+			for(int i = 0; i < layers; i++) {
+				vShadowVerts[i] = (shadowMats[i] * model * vec4(pos, 1.0)).xyz;
+			}
+		}
+	</color>
+`;
+
+	const shadowFragSrc = `
+	<color>
+		const int layers = <layers>;
+		const float bias = <bias>;
+		
+		uniform sampler2D depths[layers];
+		
+		varying vec3 vShadowVerts[layers];
+		
+		float getShadowOccl()
+		{
+			for(int i = layers - 1; i >= 0; i--) {
+				if(
+					all(greaterThanEqual(vShadowVerts[i], vec3(-1))) &&
+					all(lessThanEqual(vShadowVerts[i], vec3(+1)))
+				) {
+					vec2 shadowUv  = (vShadowVerts[i].xy + vec2(1, -1)) * 0.5;
+					float depthVal = texture2D(depths[i], shadowUv).r * 2.0 - 1.0;
+					
+					return depthVal < vShadowVerts[i].z - bias ? 1.0 : 0.0;
+				}
+			}
+			
+			return 0.0;
+		}
+	</color>
+`;
+
 	class ChunkDrawable extends ChunkMesh
 	{
 		constructor(display)
@@ -643,10 +693,16 @@ var generator = (function (exports) {
 			this.display = display;
 			
 			if(display) {
-				this.buf         = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
-				this.shader      = display.getShader("chunk", vertSrc(false), fragSrc(false));
-				this.depthShader = display.getShader("chunkdepth", vertSrc(true), fragSrc(true));
-				this.atlas       = display.getTexture("gfx/atlas.png");
+				this.buf   = display.Buffer("dynamic", CHUNK_VERT_LAYOUT);
+				this.atlas = display.getTexture("gfx/atlas.png");
+
+				this.shader_c = display.getShader(
+					"chunk_c", vertSrc, fragSrc, {color: true, layers: 3, bias: 1 / 4096}
+				);
+				
+				this.shader_d = display.getShader(
+					"chunk_d", vertSrc, fragSrc, {color: false}
+				);
 			}
 		}
 		
@@ -662,7 +718,7 @@ var generator = (function (exports) {
 		drawDepth(pos, camera)
 		{
 			if(this.display && this.buf.getSize() > 0) {
-				let shader = this.depthShader;
+				let shader = this.shader_d;
 				let buf    = this.buf;
 				let gl     = this.display.gl;
 				
@@ -675,75 +731,67 @@ var generator = (function (exports) {
 			}
 		}
 		
-		draw(pos, camera, sun, shadowmapTotal, shadowmapDetail, drawDepthOnly = false)
+		draw(pos, camera, sun, shadows)
 		{
 			if(this.display && this.buf.getSize() > 0) {
-				let shader = this.shader;
+				let shader = this.shader_c;
 				let buf    = this.buf;
 				let gl     = this.display.gl;
 				
 				shader.use();
-				shader.uniform("sun",       sun);
-				shader.uniform("proj",      camera.getProjection());
-				shader.uniform("view",      camera.getView());
-				shader.uniform("model",     camera.getModel(pos));
-				shader.uniform("shadowMatTotal",  shadowmapTotal.getMatrix());
-				shader.uniform("shadowMatDetail", shadowmapDetail.getMatrix());
-				shader.texture("atlas",     this.atlas);
-				shader.texture("depthTotal", shadowmapTotal.depthtex);
-				shader.texture("depthDetail", shadowmapDetail.depthtex);
+				shader.uniform("sun",         sun);
+				shader.uniform("proj",        camera.getProjection());
+				shader.uniform("view",        camera.getView());
+				shader.uniform("model",       camera.getModel(pos));
+				shader.texture("atlas",       this.atlas);
+				shader.uniforms("shadowMats", shadows.getMatrices());
+				shader.textures("depths",     shadows.getDepthTexs());
 				shader.buffer(buf);
 				shader.triangles();
 			}
 		}
 	}
 
-	const vertSrc = depthOnly => `
-	` + (!depthOnly ? `
+	const vertSrc = shadowVertSrc + `
+	<color>
 		uniform vec3 sun;
-		uniform mat4 shadowMatTotal;
-		uniform mat4 shadowMatDetail;
-	` : '') + `
+	</color>
+	
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
 	
-	` + (!depthOnly ? `
+	<color>
 		attribute vec3 normal;
 		attribute float tile;
 		attribute float occl;
-	` : '') + `
+	</color>
+	
 	attribute vec3 vert;
 	
-	` + (!depthOnly ? `
+	<color>
 		varying vec3 vTranslatedVert;
-		varying vec3 vShadowVertTotal;
-		varying vec3 vShadowVertDetail;
 		varying vec2 uvOffset;
 		varying vec2 planePos;
 		varying float coef;
-	` : '') + `
+	</color>
 	
 	void main()
 	{
 		vec3 correctVert = vert;
 		vec4 translatedVert = view * model * vec4(correctVert, 1.0);
 		
-		` + (!depthOnly ? `
-			vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
-			vec4 shadowVertTotal  = shadowMatTotal * model * vec4(correctVert, 1.0);
-			vec4 shadowVertDetail = shadowMatDetail * model * vec4(correctVert, 1.0);
-		` : '') + `
-		
 		gl_Position = proj * translatedVert;
 		
-		` + (!depthOnly ? `
+		<color>
+			vec3 correctNormal = normalize(normal / 64.0 - vec3(1.0));
+			
 			uvOffset = vec2(mod(tile, 16.0), floor(tile / 16.0));
 			planePos = vec2(0.0);
 			
-			vTranslatedVert   = translatedVert.xyz;
-			vShadowVertTotal  = shadowVertTotal.xyz;
-			vShadowVertDetail = shadowVertDetail.xyz;
+			setShadowVerts(model, correctVert);
+			
+			vTranslatedVert = translatedVert.xyz;
 			
 			coef = (
 				0.5 * (1.0 - occl * 0.25) +
@@ -768,60 +816,35 @@ var generator = (function (exports) {
 			else if(correctNormal.z < -0.125) {
 				planePos = vec2( 0.0 + correctVert.x, 16.0 - correctVert.y);
 			}
-		` : '') + `
+		</color>
 	}
 `;
 
-	const fragSrc = depthOnly => `
-	` + (!depthOnly ? `
+	const fragSrc = shadowFragSrc + `
+	<color>
 		uniform sampler2D atlas;
-		uniform sampler2D depthTotal;
-		uniform sampler2D depthDetail;
 		uniform vec3 sun;
 		
 		varying vec3 vTranslatedVert;
-		varying vec3 vShadowVertTotal;
-		varying vec3 vShadowVertDetail;
 		varying vec2 uvOffset;
 		varying vec2 planePos;
 		varying float coef;
-	` : '') + `
+	</color>
 	
 	void main()
 	{
 		gl_FragColor = vec4(1);
 		
-		` + (!depthOnly ? `
-			float bias = 1.0 / 4096.0;
+		<color>
 			float fog = min(1.0, 16.0 / length(vTranslatedVert));
 			vec2 uv = (uvOffset + fract(planePos)) / 16.0;
-			float depthOccl = 0.0;
-			
-			if(
-				vShadowVertDetail.x >= -1.0 && vShadowVertDetail.x <= +1.0 &&
-				vShadowVertDetail.y >= -1.0 && vShadowVertDetail.y <= +1.0 &&
-				vShadowVertDetail.z >= -1.0 && vShadowVertDetail.z <= +1.0
-			) {
-				vec2 shadowUv = (vShadowVertDetail.xy + vec2(1, -1)) * 0.5;
-				float depthVal = texture2D(depthDetail, shadowUv).r * 2.0 - 1.0;
-				
-				depthOccl = depthVal < vShadowVertDetail.z - bias ? 1.0 : 0.0;
-			}
-			else {
-				vec2 shadowUv = (vShadowVertTotal.xy + vec2(1, -1)) * 0.5;
-				float depthVal = texture2D(depthTotal, shadowUv).r * 2.0 - 1.0;
-				
-				depthOccl = depthVal < vShadowVertTotal.z - bias ? 1.0 : 0.0;
-			}
-			
-			depthOccl *= max(0.0, -sun.y);
+			float depthOccl = getShadowOccl() * max(0.0, -sun.y);
 			
 			gl_FragColor      = texture2D(atlas, uv);
 			gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
-			
 			gl_FragColor.rgb *= fog;
 			gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
-		` : '') + `
+		</color>
 	}
 `;
 
@@ -1661,6 +1684,73 @@ var generator = (function (exports) {
 		{
 			return this.camera.getProjView();
 		}
+		
+		getCamera()
+		{
+			return this.camera;
+		}
+		
+		getDepthTex()
+		{
+			return this.depthtex;
+		}
+	}
+
+	class ShadowCascade
+	{
+		constructor(display, sun, drawfn)
+		{
+			this.display  = display;
+			this.sun      = sun;
+			this.drawfn   = drawfn;
+			this.layers   = [];
+			this.framecnt = 0;
+		}
+		
+		addLayer(scale = 16, resol = 2048, throttle = 1, centered = false)
+		{
+			this.layers.push({
+				throttle, centered,
+				map: new ShadowMap(this.display, this.sun, scale, resol),
+			});
+		}
+		
+		getMap(i)
+		{
+			return this.layers[i].map;
+		}
+		
+		getMaps()
+		{
+			return this.layers.map(l => l.map);
+		}
+		
+		getMatrices()
+		{
+			return this.layers.map(l => l.map.getMatrix());
+		}
+		
+		getDepthTexs()
+		{
+			return this.layers.map(l => l.map.getDepthTex());
+		}
+		
+		update(centerPos)
+		{
+			this.layers.forEach(layer => {
+				if(this.framecnt % layer.throttle === 0) {
+					if(layer.centered) {
+						layer.map.getCamera().setPos(centerPos);
+					}
+					
+					layer.map.beginDraw();
+					this.drawfn(layer.map.getCamera());
+					layer.map.endDraw();
+				}
+			});
+			
+			this.framecnt++;
+		}
 	}
 
 	let layout$1 = new VertexLayout("float", ["pos", 3], ["norm", 3], ["uv", 2]);
@@ -1673,17 +1763,23 @@ var generator = (function (exports) {
 				tex = display.getTexture(tex);
 			}
 			
-			this.tex         = tex;
-			this.display     = display;
-			this.buf         = display.Buffer("static", layout$1, data);
-			this.ibuf        = display.Buffer("static", "index", indices);
-			this.shader      = display.getShader("model", modelVertSrc(true), modelFragSrc(true));
-			this.depthShader = display.getShader("modeldepth", modelVertSrc(false), modelFragSrc(false));
+			this.tex      = tex;
+			this.display  = display;
+			this.buf      = display.Buffer("static", layout$1, data);
+			this.ibuf     = display.Buffer("static", "index", indices);
+			
+			this.shader_c = display.getShader(
+				"model_c", modelVertSrc, modelFragSrc, {color: true, layers: 3, bias: 1 / 4096}
+			);
+			
+			this.shader_d = display.getShader(
+				"model_d", modelVertSrc, modelFragSrc, {color: false}
+			);
 		}
 		
 		drawDepth(pos, camera, instances = null)
 		{
-			let shader = this.depthShader;
+			let shader = this.shader_d;
 			let buf    = this.buf;
 			
 			shader.use();
@@ -1704,9 +1800,9 @@ var generator = (function (exports) {
 			shader.triangles();
 		}
 		
-		draw(pos, camera, sun, instances = null)
+		draw(pos, camera, sun, shadows, instances = null)
 		{
-			let shader = this.shader;
+			let shader = this.shader_c;
 			let buf    = this.buf;
 			
 			shader.use();
@@ -1718,6 +1814,8 @@ var generator = (function (exports) {
 			shader.uniform("diff",    0.5);
 			shader.uniform("fogCol",  [0.75, 0.875, 1.0]);
 			shader.uniform("fogDist", 16);
+			shader.uniforms("shadowMats", shadows.getMatrices());
+			shader.textures("depths",     shadows.getDepthTexs());
 			shader.indices(this.ibuf);
 			shader.buffer(buf);
 			
@@ -1732,25 +1830,28 @@ var generator = (function (exports) {
 		}
 	}
 
-	const modelVertSrc = withColor => `
-	` + (withColor ? `
+	const modelVertSrc = shadowVertSrc + `
+	<color>
 		uniform vec3 sun;
 		uniform float diff;
-	` : '') + `
+	</color>
+	
 	uniform mat4 proj;
 	uniform mat4 view;
 	uniform mat4 model;
 	
-	` + (withColor ? `
+	<color>
 		attribute vec3 norm;
-	` : '') + `
+	</color>
+	
 	attribute vec2 uv;
 	attribute vec3 ipos;
 	attribute vec3 pos;
 	
-	` + (withColor ? `
+	<color>
 		varying float vCoef;
-	` : '') + `
+	</color>
+	
 	varying vec2 vUv;
 	varying vec4 vTransPos;
 	
@@ -1760,40 +1861,43 @@ var generator = (function (exports) {
 		gl_Position = proj * vTransPos;
 		vUv         = uv;
 		
-		` + (withColor ? `
-			vCoef       = (1.0 - diff) + diff * max(0.0, dot(norm, sun));
-		` : '') + `
+		<color>
+			setShadowVerts(model, ipos + pos);
+			vCoef = (1.0 - diff) + diff * max(0.0, dot(norm, sun)) * max(0.0, sun.y);
+		</color>
 	}
 `;
 
-	const modelFragSrc = withColor => `
+	const modelFragSrc = shadowFragSrc + `
 	uniform sampler2D tex;
-	` + (withColor ? `
+	
+	<color>
 		uniform vec3 fogCol;
 		uniform vec3 sun;
 		uniform float fogDist;
 		
 		varying vec4 vTransPos;
 		varying float vCoef;
-	` : '') + `
+	</color>
 	
 	varying vec2 vUv;
 	
 	void main()
 	{
-		gl_FragColor      = texture2D(tex, vUv);
+		gl_FragColor = texture2D(tex, vUv);
 		
 		if(gl_FragColor.a == 0.0) {
 			discard;
 		}
 		
-		` + (withColor ? `
+		<color>
 			float fog = min(1.0, fogDist / length(vTransPos.xyz));
+			float depthOccl = getShadowOccl() * max(0.0, sun.y);
 			
-			gl_FragColor.rgb *= vCoef;
+			gl_FragColor.rgb *= vCoef * (1.0 - depthOccl * 0.5);
 			gl_FragColor.rgb *= fog;
 			gl_FragColor.rgb += (1.0 - fog) * fogCol * sun.y;
-		` : '') + `
+		</color>
 	}
 `;
 
@@ -1828,13 +1932,13 @@ var generator = (function (exports) {
 			}
 		}
 		
-		draw(camera, sun, depthOnly = false)
+		draw(camera, sun, shadows, depthOnly = false)
 		{
 			if(depthOnly) {
 				this.model.drawDepth([0.5, 0, 0.5], camera, this.buf);
 			}
 			else {
-				this.model.draw([0.5, 0, 0.5], camera, sun, this.buf);
+				this.model.draw([0.5, 0, 0.5], camera, sun, shadows, this.buf);
 			}
 		}
 	}
@@ -11315,18 +11419,19 @@ var generator = (function (exports) {
 			this.sun           = new Sun(0.375, 0);
 			this.emptyChunk    = new ChunkDrawable(display);
 			this.trees         = [];
-			this.framecnt      = 0;
 					
 			if(display) {
+				this.shadowDrawFn     = this.shadowDrawFn.bind(this);
 				this.getChunkVicinity = this.getChunkVicinity.bind(this);
 				this.isSolidBlock     = this.isSolidBlock.bind(this);
 				this.getBlockSlope    = this.getBlockSlope.bind(this);
 				this.skybox           = new Skybox(display, this.sun);
 				this.ground           = new Ground(display, this.sun);
-				this.shadowmapTotal   = new ShadowMap(display, this.sun, 444);
-				this.shadowmapDetail  = new ShadowMap(display, this.sun, 16);
 				
-				this.shadowmapTotal.camera.setPos([128, 128, 128]);
+				this.shadows = new ShadowCascade(display, this.sun, this.shadowDrawFn);
+				this.shadows.addLayer(256, 2048, 32, true);
+				this.shadows.addLayer(64,  1024, 16, true);
+				this.shadows.addLayer(16,  512,  8,  true);
 				
 				this.models = new ModelBatch(
 					new Model(display, tree1.data, tree1.indices, "gfx/tree1.png")
@@ -11483,24 +11588,15 @@ var generator = (function (exports) {
 			this.sun.update(delta);
 		}
 		
+		shadowDrawFn(camera)
+		{
+			this.drawWorld(camera, true);
+		}
+		
 		draw(camera)
 		{
-			if(this.framecnt % 16 === 0) {
-				this.shadowmapTotal.beginDraw();
-				this.drawWorld(this.shadowmapTotal.camera, true);
-				this.shadowmapTotal.endDraw();
-			}
-			
-			if(this.framecnt % 8 === 0) {
-				this.shadowmapDetail.camera.setPos(camera.pos);
-				this.shadowmapDetail.beginDraw();
-				this.drawWorld(this.shadowmapDetail.camera, true);
-				this.shadowmapDetail.endDraw();
-			}
-			
+			this.shadows.update(camera.pos);
 			this.drawWorld(camera);
-			
-			this.framecnt++;
 		}
 		
 		drawWorld(camera, depthOnly = false)
@@ -11522,13 +11618,12 @@ var generator = (function (exports) {
 						[ox, 0, oz],
 						camera,
 						this.sun.getRayDir(),
-						this.shadowmapTotal,
-						this.shadowmapDetail,
+						this.shadows,
 					);
 				});
 			}
 			
-			this.models.draw(camera, this.sun.getSkyDir(), depthOnly);
+			this.models.draw(camera, this.sun.getSkyDir(), this.shadows, depthOnly);
 		}
 	}
 
@@ -11601,7 +11696,29 @@ var generator = (function (exports) {
 		world    = new World(display);
 		callback = fn;
 		
-		worker$1.postMessage("start");
+		worker$1.postMessage({cmd: "generate"});
+		
+		return world;
+	}
+
+	function loadWorld(display, src, fn)
+	{
+		world    = new World(display);
+		callback = fn;
+		
+		let img    = document.createElement("img");
+		let canvas = document.createElement("canvas");
+		
+		img.onload = () => {
+			canvas.width  = img.width;
+			canvas.height = img.height;
+			let ctx = canvas.getContext("2d");
+			ctx.drawImage(img, 0, 0);
+			let imgData = ctx.getImageData(0, 0, img.width, img.height);
+			worker$1.postMessage({cmd: "load", pixels: imgData.data});
+		};
+		
+		img.src = "worlds/" + src;
 		
 		return world;
 	}
@@ -11625,8 +11742,49 @@ var generator = (function (exports) {
 		let chunkbuf  = new Uint16Array(CHUNK_SIZE);
 		
 		onmessage = e => {
-			postMessage(generateWorldImpl());
+			if(e.data.cmd === "generate") {
+				postMessage(generateWorldImpl());
+			}
+			else if(e.data.cmd === "load") {
+				postMessage(loadWorldImpl(e.data.pixels));
+			}
 		};
+		
+		function loadWorldImpl(pixels)
+		{
+			let world = new World();
+			let now   = performance.now();
+			let delta = 0;
+			
+			loadHeightmap(pixels);
+			
+			delta = performance.now() - now;
+			console.log("loadHeightmap time:", delta);
+			now = performance.now();
+			
+			generateBaseTerrain(world);
+			
+			delta = performance.now() - now;
+			console.log("generateBaseTerrain time:", delta);
+			now = performance.now();
+			
+			generateSlopes(world);
+			
+			delta = performance.now() - now;
+			console.log("generateSlopes time:", delta);
+			now = performance.now();
+			
+			return world;
+		}
+		
+		function loadHeightmap(pixels)
+		{
+			for(let z=0, i=0; z < WORLD_WIDTH; z++) {
+				for(let x=0; x < WORLD_WIDTH; x++, i++) {
+					heightmap[i] = pixels[i * 4];
+				}
+			}
+		}
 
 		function generateWorldImpl()
 		{
@@ -11758,6 +11916,7 @@ var generator = (function (exports) {
 	}
 
 	exports.generateWorld = generateWorld;
+	exports.loadWorld = loadWorld;
 
 	return exports;
 
