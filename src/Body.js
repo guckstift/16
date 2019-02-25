@@ -162,6 +162,13 @@ export class Body extends Movable
 					);
 				}
 				
+				else if(sl === 0b0110) {
+					/*miny = Math.max(
+						iy + x - ix,
+						iy + z - iz,
+					);*/
+				}
+				
 				this.pos[1] = Math.max(this.pos[1], miny);
 				
 				if(this.pos[1] === miny) {

@@ -1,7 +1,10 @@
 import * as vector from "../gluck/vector.js";
 import {CHUNK_VERT_LAYOUT} from "./ChunkMesh.js";
-import {isSolidBlock, getBlockTile, isVisibleBlock, getBlockId, getBlockSlope} from "./blocks.js";
 import {CHUNK_SIZE, CHUNK_WIDTH, CHUNK_HEIGHT, localBlockIndex} from "./worldmetrics.js";
+
+import {
+	isSolidBlock, getBlockTile, isVisibleBlock, getBlockId, getBlockSlope, isOccludingBlock
+} from "./blocks.js";
 
 onmessage = e =>
 {
@@ -86,7 +89,7 @@ function getCachedBlockId(x, y, z)
 
 function isOccluding(block)
 {
-	return isVisibleBlock(block & 0xff) && (block >> 8 & 0xf) === 0;
+	return isOccludingBlock(getBlockId(block));
 }
 
 function getSlopeNormalPattern(sl)
@@ -127,7 +130,7 @@ function getSlopeNormalPattern(sl)
 	}
 }
 
-function getVertOcclusion(side0, side1, corner)
+function getVertAO(side0, side1, corner)
 {
 	return side0 && side1 ? 3 : side0 + side1 + corner;
 }
@@ -160,7 +163,7 @@ function computeFaces()
 						computeFace(x, y, z,  0, 0,-1, id, 5, frontFaces)
 					}
 					else {
-						let occl    = computeFaceOcclusion(x, y, z, 0, 1, 0);
+						let occl    = computeFaceAOs(x, y, z, 0, 1, 0);
 						topFaces[i] = createFaceInfo(getBlockTile(id, 2), ...occl, slope, 1);
 					}
 				}
@@ -169,7 +172,39 @@ function computeFaces()
 	}
 }
 
-function computeFaceOcclusion(x, y, z, nx, ny, nz)
+function computeFace(x, y, z, nx, ny, nz, id, fid, targetFaces)
+{
+	let tile    = 0;
+	let visible = 0;
+	let occl    = [0,0,0,0];
+	let adj     = getCachedBlock(x + nx, y + ny, z + nz);
+	let adjSl   = getBlockSlope(adj);
+	
+	if(
+		isOccluding(adj) === false ||
+		nx === +1 && adjSl > 0 && (adjSl & 0b0101) !== 0b0101 ||
+		nx === -1 && adjSl > 0 && (adjSl & 0b1010) !== 0b1010 ||
+		nz === +1 && adjSl > 0 && (adjSl & 0b0011) !== 0b0011 ||
+		nz === -1 && adjSl > 0 && (adjSl & 0b1100) !== 0b1100
+	) {
+		tile    = getBlockTile(id, fid);
+		visible = 1;
+		occl    = computeFaceAOs(x, y, z, nx, ny, nz);
+	}
+	
+	targetFaces[localBlockIndex(x, y, z)] = (
+		createFaceInfo(tile, ...occl, 0, visible)
+	);
+}
+
+function createFaceInfo(tile, occl0, occl1, occl2, occl3, slope, visible)
+{
+	return (
+		tile | occl0 << 8 | occl1 << 10 | occl2 << 12 | occl3 << 14 | slope << 16 | visible << 20
+	);
+}
+
+function computeFaceAOs(x, y, z, nx, ny, nz)
 {
 	let right   = false;
 	let left    = false;
@@ -245,36 +280,12 @@ function computeFaceOcclusion(x, y, z, nx, ny, nz)
 		lbc    = isOccluding(getCachedBlock(x - 1, y - 1, z - 1));
 	}
 	
-	occl0 = getVertOcclusion(left,  bottom, lbc);
-	occl1 = getVertOcclusion(right, bottom, rbc);
-	occl2 = getVertOcclusion(left,  top,    ltc);
-	occl3 = getVertOcclusion(right, top,    rtc);
+	occl0 = getVertAO(left,  bottom, lbc);
+	occl1 = getVertAO(right, bottom, rbc);
+	occl2 = getVertAO(left,  top,    ltc);
+	occl3 = getVertAO(right, top,    rtc);
 	
 	return [occl0, occl1, occl2, occl3];
-}
-
-function computeFace(x, y, z, nx, ny, nz, id, fid, targetFaces)
-{
-	let tile    = 0;
-	let visible = 0;
-	let occl    = [0,0,0,0];
-	
-	if(!isOccluding(getCachedBlock(x + nx, y + ny, z + nz))) {
-		tile    = getBlockTile(id, fid);
-		visible = 1;
-		occl    = computeFaceOcclusion(x, y, z, nx, ny, nz);
-	}
-	
-	targetFaces[localBlockIndex(x, y, z)] = (
-		createFaceInfo(tile, ...occl, 0, visible)
-	);
-}
-
-function createFaceInfo(tile, occl0, occl1, occl2, occl3, slope, visible)
-{
-	return (
-		tile | occl0 << 8 | occl1 << 10 | occl2 << 12 | occl3 << 14 | slope << 16 | visible << 20
-	);
 }
 
 function extractFaceInfo(face)
@@ -378,7 +389,9 @@ function mergeFacesSide(targetFaces, ax0,ax1,ax2, nx,ny,nz, fx,fy,fz)
 						addSlopeQuad(
 							j, q,
 							info.tile, slope,
-							slope === 0b0001 || slope === 0b1000 || slope === 0b1110,
+							slope === 0b0001 || slope === 0b1000 ||
+							slope === 0b1110 || slope === 0b0111 ||
+							slope === 0b0110,
 							info.occl0,info.occl1,info.occl2,info.occl3
 						);
 					}

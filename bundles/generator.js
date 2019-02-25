@@ -841,6 +841,11 @@ var generator = (function (exports) {
 			float depthOccl = getShadowOccl() * max(0.0, -sun.y);
 			
 			gl_FragColor      = texture2D(atlas, uv);
+			
+			if(gl_FragColor.a == 0.0) {
+				discard;
+			}
+			
 			gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
 			gl_FragColor.rgb *= fog;
 			gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
@@ -11867,41 +11872,80 @@ var generator = (function (exports) {
 					let h = getHeight(x, z);
 					let y = h + 1;
 					
-					if(
-						getHeight(x, z + 1) > h &&
-						getHeight(x - 1, z) >= h &&
-						getHeight(x + 1, z) >= h
-					) {
-						putSlope(world, x,   y, z, 0b1100);
-						putSlope(world, x-1, y, z, 0b1000);
-						putSlope(world, x+1, y, z, 0b0100);
+					if(getHeight(x, z + 1) > h) {
+						let right = getHeight(x + 1, z);
+						if(right > h) {
+							putSlope(world, x, y, z, 0b1000);
+						}
+						else if(right == h) {
+							let rdiag = getHeight(x + 1, z + 1);
+							if(rdiag > h) {
+								putSlope(world, x, y, z, 0b1000);
+								putSlope(world, x + 1, y, z, 0b0100);
+							}
+							else if(rdiag == h) {
+								putSlope(world, x, y, z, 0b1000);
+								putSlope(world, x + 1, y, z, 0b0100);
+								putSlope(world, x + 1, y, z + 1, 0b0001);
+							}
+						}
 					}
-					if(
-						getHeight(x, z - 1) > h &&
-						getHeight(x - 1, z) >= h &&
-						getHeight(x + 1, z) >= h
-					) {
-						putSlope(world, x,   y, z, 0b0011);
-						putSlope(world, x-1, y, z, 0b0010);
-						putSlope(world, x+1, y, z, 0b0001);
+					
+					if(getHeight(x + 1, z) > h) {
+						let right = getHeight(x, z - 1);
+						if(right > h) {
+							putSlope(world, x, y, z, 0b0010);
+						}
+						else if(right == h) {
+							let rdiag = getHeight(x + 1, z - 1);
+							if(rdiag > h) {
+								putSlope(world, x, y, z, 0b0010);
+								putSlope(world, x, y, z - 1, 0b1000);
+							}
+							else if(rdiag == h) {
+								putSlope(world, x, y, z, 0b0010);
+								putSlope(world, x, y, z - 1, 0b1000);
+								putSlope(world, x + 1, y, z - 1, 0b0100);
+							}
+						}
 					}
-					if(
-						getHeight(x + 1, z) > h &&
-						getHeight(x, z - 1) >= h &&
-						getHeight(x, z + 1) >= h
-					) {
-						putSlope(world, x, y, z,   0b1010);
-						putSlope(world, x, y, z-1, 0b1000);
-						putSlope(world, x, y, z+1, 0b0010);
+					
+					if(getHeight(x, z - 1) > h) {
+						let right = getHeight(x - 1, z);
+						if(right > h) {
+							putSlope(world, x, y, z, 0b0001);
+						}
+						else if(right == h) {
+							let rdiag = getHeight(x - 1, z - 1);
+							if(rdiag > h) {
+								putSlope(world, x, y, z, 0b0001);
+								putSlope(world, x - 1, y, z, 0b0010);
+							}
+							else if(rdiag == h) {
+								putSlope(world, x, y, z, 0b0001);
+								putSlope(world, x - 1, y, z, 0b0010);
+								putSlope(world, x - 1, y, z - 1, 0b1000);
+							}
+						}
 					}
-					if(
-						getHeight(x - 1, z) > h &&
-						getHeight(x, z - 1) >= h &&
-						getHeight(x, z + 1) >= h
-					) {
-						putSlope(world, x, y, z,   0b0101);
-						putSlope(world, x, y, z-1, 0b0100);
-						putSlope(world, x, y, z+1, 0b0001);
+					
+					if(getHeight(x - 1, z) > h) {
+						let right = getHeight(x, z + 1);
+						if(right > h) {
+							putSlope(world, x, y, z, 0b0100);
+						}
+						else if(right == h) {
+							let rdiag = getHeight(x - 1, z + 1);
+							if(rdiag > h) {
+								putSlope(world, x, y, z, 0b0100);
+								putSlope(world, x, y, z + 1, 0b0001);
+							}
+							else if(rdiag == h) {
+								putSlope(world, x, y, z, 0b0100);
+								putSlope(world, x, y, z + 1, 0b0001);
+								putSlope(world, x - 1, y, z + 1, 0b0010);
+							}
+						}
 					}
 				}
 			}
@@ -11909,9 +11953,7 @@ var generator = (function (exports) {
 
 		function putSlope(world, x, y, z, sl)
 		{
-			if(!world.isSolidBlock(x, y, z) || world.getBlockSlope(x, y, z) > 0) {
-				world.setBlock(x, y, z, world.getBlockId(x, y - 1, z), sl, true);
-			}
+			world.setBlock(x, y, z, world.getBlockId(x, y - 1, z), sl, true);
 		}
 	}
 

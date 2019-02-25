@@ -183,41 +183,80 @@ else {
 				let h = getHeight(x, z);
 				let y = h + 1;
 				
-				if(
-					getHeight(x, z + 1) > h &&
-					getHeight(x - 1, z) >= h &&
-					getHeight(x + 1, z) >= h
-				) {
-					putSlope(world, x,   y, z, 0b1100);
-					putSlope(world, x-1, y, z, 0b1000);
-					putSlope(world, x+1, y, z, 0b0100);
+				if(getHeight(x, z + 1) > h) {
+					let right = getHeight(x + 1, z);
+					if(right > h) {
+						putSlope(world, x, y, z, 0b1000);
+					}
+					else if(right == h) {
+						let rdiag = getHeight(x + 1, z + 1);
+						if(rdiag > h) {
+							putSlope(world, x, y, z, 0b1000);
+							putSlope(world, x + 1, y, z, 0b0100);
+						}
+						else if(rdiag == h) {
+							putSlope(world, x, y, z, 0b1000);
+							putSlope(world, x + 1, y, z, 0b0100);
+							putSlope(world, x + 1, y, z + 1, 0b0001);
+						}
+					}
 				}
-				if(
-					getHeight(x, z - 1) > h &&
-					getHeight(x - 1, z) >= h &&
-					getHeight(x + 1, z) >= h
-				) {
-					putSlope(world, x,   y, z, 0b0011);
-					putSlope(world, x-1, y, z, 0b0010);
-					putSlope(world, x+1, y, z, 0b0001);
+				
+				if(getHeight(x + 1, z) > h) {
+					let right = getHeight(x, z - 1);
+					if(right > h) {
+						putSlope(world, x, y, z, 0b0010);
+					}
+					else if(right == h) {
+						let rdiag = getHeight(x + 1, z - 1);
+						if(rdiag > h) {
+							putSlope(world, x, y, z, 0b0010);
+							putSlope(world, x, y, z - 1, 0b1000);
+						}
+						else if(rdiag == h) {
+							putSlope(world, x, y, z, 0b0010);
+							putSlope(world, x, y, z - 1, 0b1000);
+							putSlope(world, x + 1, y, z - 1, 0b0100);
+						}
+					}
 				}
-				if(
-					getHeight(x + 1, z) > h &&
-					getHeight(x, z - 1) >= h &&
-					getHeight(x, z + 1) >= h
-				) {
-					putSlope(world, x, y, z,   0b1010);
-					putSlope(world, x, y, z-1, 0b1000);
-					putSlope(world, x, y, z+1, 0b0010);
+				
+				if(getHeight(x, z - 1) > h) {
+					let right = getHeight(x - 1, z);
+					if(right > h) {
+						putSlope(world, x, y, z, 0b0001);
+					}
+					else if(right == h) {
+						let rdiag = getHeight(x - 1, z - 1);
+						if(rdiag > h) {
+							putSlope(world, x, y, z, 0b0001);
+							putSlope(world, x - 1, y, z, 0b0010);
+						}
+						else if(rdiag == h) {
+							putSlope(world, x, y, z, 0b0001);
+							putSlope(world, x - 1, y, z, 0b0010);
+							putSlope(world, x - 1, y, z - 1, 0b1000);
+						}
+					}
 				}
-				if(
-					getHeight(x - 1, z) > h &&
-					getHeight(x, z - 1) >= h &&
-					getHeight(x, z + 1) >= h
-				) {
-					putSlope(world, x, y, z,   0b0101);
-					putSlope(world, x, y, z-1, 0b0100);
-					putSlope(world, x, y, z+1, 0b0001);
+				
+				if(getHeight(x - 1, z) > h) {
+					let right = getHeight(x, z + 1);
+					if(right > h) {
+						putSlope(world, x, y, z, 0b0100);
+					}
+					else if(right == h) {
+						let rdiag = getHeight(x - 1, z + 1);
+						if(rdiag > h) {
+							putSlope(world, x, y, z, 0b0100);
+							putSlope(world, x, y, z + 1, 0b0001);
+						}
+						else if(rdiag == h) {
+							putSlope(world, x, y, z, 0b0100);
+							putSlope(world, x, y, z + 1, 0b0001);
+							putSlope(world, x - 1, y, z + 1, 0b0010);
+						}
+					}
 				}
 			}
 		}
@@ -225,8 +264,6 @@ else {
 
 	function putSlope(world, x, y, z, sl)
 	{
-		if(!world.isSolidBlock(x, y, z) || world.getBlockSlope(x, y, z) > 0) {
-			world.setBlock(x, y, z, world.getBlockId(x, y - 1, z), sl, true);
-		}
+		world.setBlock(x, y, z, world.getBlockId(x, y - 1, z), sl, true);
 	}
 }

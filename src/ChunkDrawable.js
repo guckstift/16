@@ -158,6 +158,11 @@ const fragSrc = shadowFragSrc + `
 			float depthOccl = getShadowOccl() * max(0.0, -sun.y);
 			
 			gl_FragColor      = texture2D(atlas, uv);
+			
+			if(gl_FragColor.a == 0.0) {
+				discard;
+			}
+			
 			gl_FragColor.rgb *= coef * (1.0 - depthOccl * 0.5);
 			gl_FragColor.rgb *= fog;
 			gl_FragColor.rgb += (1.0 - fog) * vec3(0.75, 0.875, 1.0) * max(0.0, -sun.y);
