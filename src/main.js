@@ -14,8 +14,8 @@ document.body.style.overflow = "hidden";
 
 window.display    = new Display();
 window.input      = new Input(display);
-window.world      = loadWorld(display, "world0.png", plain => { console.log("world done") });
-//window.world      = generateWorld(display, plain => { console.log("world done") });
+//window.world      = loadWorld(display, "world0.png", plain => { console.log("world done") });
+window.world      = generateWorld(display, plain => { console.log("world done") });
 window.body       = new Body(world, 1.5, [-0.25, 0, -0.25], [0.25, 1.75, 0.25]);
 window.camera     = new BodyCamera(body);
 window.controller = new Controller(body, input);

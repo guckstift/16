@@ -1,8 +1,6 @@
 import * as vector from "./vector.js";
 import {radians} from "./math.js";
 
-let deltavel = vector.create();
-
 export class Movable
 {
 	constructor()

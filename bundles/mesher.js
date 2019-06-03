@@ -281,7 +281,7 @@
 	{
 		switch(sl) {
 			case 0b0000:
-				return [0,0, 0,0, 0,0, 0,0]
+				return [0,0, 0,0, 0,0, 0,0];
 			case 0b0001:
 				return [1,1, 1,0, 0,1, 1,1];
 			case 0b0010:
