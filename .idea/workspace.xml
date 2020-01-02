@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="68157ca2-cc33-4b1c-85a9-0b740310cdab" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/bundles/generator.js" beforeDir="false" afterPath="$PROJECT_DIR$/bundles/generator.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bundles/mesher.js" beforeDir="false" afterPath="$PROJECT_DIR$/bundles/mesher.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gfx/atlas.png" beforeDir="false" afterPath="$PROJECT_DIR$/gfx/atlas.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gluck/Movable.js" beforeDir="false" afterPath="$PROJECT_DIR$/gluck/Movable.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/generator.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/generator.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mesher.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/mesher.js" afterDir="false" />
-    </list>
+    <list default="true" id="68157ca2-cc33-4b1c-85a9-0b740310cdab" name="Default Changelist" comment="" />
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
     <ignored path="$PROJECT_DIR$/tmp/" />
@@ -27,8 +19,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/mesher.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="206">
-              <caret line="373" column="46" selection-start-line="373" selection-start-column="46" selection-end-line="373" selection-end-column="46" />
+            <state relative-caret-position="1697">
+              <caret line="378" column="27" lean-forward="true" selection-start-line="378" selection-start-column="27" selection-end-line="378" selection-end-column="27" />
               <folding>
                 <element signature="e#0#45#0" expanded="true" />
               </folding>
@@ -94,7 +86,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -111,10 +102,12 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="NewWatcherDialog.advanced.open" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="node.js.detected.package.jscs" value="true" />
@@ -166,11 +159,12 @@
       <workItem from="1557309740355" duration="2609000" />
       <workItem from="1558436142654" duration="66000" />
       <workItem from="1558436398603" duration="13000" />
+      <workItem from="1565357151895" duration="20000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="16887000" />
+    <option name="totallyTimeSpent" value="16907000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -381,8 +375,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/mesher.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="206">
-          <caret line="373" column="46" selection-start-line="373" selection-start-column="46" selection-end-line="373" selection-end-column="46" />
+        <state relative-caret-position="1697">
+          <caret line="378" column="27" lean-forward="true" selection-start-line="378" selection-start-column="27" selection-end-line="378" selection-end-column="27" />
           <folding>
             <element signature="e#0#45#0" expanded="true" />
           </folding>
