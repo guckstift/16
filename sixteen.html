@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>16</title>
+		<style>
+			img {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+			}
+			
+			#img1 {
+				animation: rotation 16s infinite linear;
+			}
+			
+			#img2 {
+				animation: rotation 32s infinite linear;
+			}
+			
+			#img3 {
+				animation: rotation 64s infinite linear;
+			}
+			
+			@keyframes rotation {
+				from {
+					transform: translate(-50%, -50%) rotate(0deg);
+				}
+				to {
+					transform: translate(-50%, -50%) rotate(359deg);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<img src="doc/logo1.png" id="img1">
+		<img src="doc/logo2.png" id="img2">
+		<img src="doc/logo3.png" id="img3">
+	</body>
+</html>
