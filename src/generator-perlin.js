@@ -1,22 +1,16 @@
-import Compo from "./compo.js";
+import Perlin from "./perlin.js";
 
-//let perlin   = new ValueNoise(183492760);
-let heights = [];
-let treemap = [];
-let chunk   = [];
-let data    = [];
+let perlin   = new Perlin(183492760);
+let heights  = [];
+let treemap  = [];
+let chunk    = [];
+let data     = [];
 
-let compo = new Compo(
-	[ 2,  1, 12345],
-	[16, 16, 23451],
-	[64, 64, 34512],
-);
-
-//console.log(perlin);
+console.log(perlin);
 
 function clamp(a, b, x)
 {
-	return Math.max(a, Math.min(b, x));
+	return Math.max(0, Math.min(1, x));
 }
 
 function smooth(x)
@@ -43,14 +37,13 @@ for(let y = 0, i = 0; y < 256; y ++) {
 	for(let x = 0; x < 256; x ++, i ++) {
 		let rx = x * 2 / 256 - 1;
 		let ry = y * 2 / 256 - 1;
-		let p  = compo.sample(x, y);
-		//let p  = perlin.fractal2(5, rx, ry, 0.4) * 0.5 + 0.5;
+		let p  = perlin.fractal2(5, rx, ry, 0.4) * 0.5 + 0.5;
+		let f  = p - 0.25;
 		//f = smooth(f);
-		//let h  = Math.max(1, Math.floor(f * roundBorder(rx, ry) * (256 + 256)));
-		let h = clamp(0, 256, Math.floor(p));
+		let h  = Math.max(1, Math.floor(f * roundBorder(rx, ry) * (256 + 64)));
 		
 		heights[i] = h;
-		treemap[i] = Math.random() < 0.0625 * heights[i] / 96 ? 1 : 0;
+		treemap[i] = 0;
 		
 		/* /
 		//heights[i] = Math.max(1, (y - 10) * 2);
@@ -104,9 +97,9 @@ function height(x, y)
 	return heights[x + y * 256];
 }
 
-function treeat(x, y, z)
+function treeat(x, y)
 {
-	return treemap[x + y * 256] === 1 && heights[x + y * 256] === z;
+	return treemap[x + y * 256];
 }
 
 function heightForSlope(x, y)
@@ -127,9 +120,9 @@ function slopedir(x, y, z, sl, h, ax0, fax0, pa, pb)
 	if(height(x + f[0], y + f[1]) > h) {
 		for(s[ax1] = -1; s[ax1] <= +1; s[ax1] += 2, i ++) {
 			if(heightForSlope(x + s[0],        y + s[1])        >= h &&
-			   heightForSlope(x + s[0] + f[0], y + s[1] + f[1]) >= h &&
-			   !treeat(x + s[0],        y + s[1], h)                &&
-			   !treeat(x + s[0] + f[0], y + s[1] + f[1], h)        
+			   heightForSlope(x + s[0] + f[0], y + s[1] + f[1]) >= h
+			   //&& treeat(x + s[0],        y + s[1])        === 0 &&
+			   //treeat(x + s[0] + f[0], y + s[1] + f[1]) === 0
 			) {
 				sl |= ps[i];
 			}
@@ -143,10 +136,10 @@ function slopecorner(x, y, z, sl, h, nx, ny, p)
 {
 	if(heightForSlope(x + nx, y + ny) >  h &&
 	   heightForSlope(x + nx, y     ) >= h &&
-	   heightForSlope(x     , y + ny) >= h &&
-	   !treeat(x + nx, y + ny, h) &&
-	   !treeat(x + nx, y     , h)  &&
-	   !treeat(x     , y + ny, h) 
+	   heightForSlope(x     , y + ny) >= h
+	   //&& treeat(x + nx, y + ny) === 0 &&
+	   //treeat(x + nx, y     ) === 0 &&
+	   //treeat(x     , y + ny) === 0
 	) {
 		sl |= p;
 	}
@@ -198,22 +191,16 @@ onmessage = e => {
 				if(z < h - 1) {
 					chunk[i] = 2;
 				}
-				else if(z === h - 1) {
+				else if(z < h) {
 					chunk[i] = 3;
 				}
 				else if(z === h) {
-					if(!treemap[ax + ay * 256]) {
-						chunk[i] = slope(ax, ay, z);
-					}
-					else {
+					if(treemap[ax + ay * 256]) {// && (chunk[i] >> 8 === 0)) {
 						chunk[i] = 0b1111 << 8;
 					}
-					//if(treemap[ax + ay * 256]) {// && (chunk[i] >> 8 === 0)) {
-					//	chunk[i] = 0b1111 << 8;
-					//}
-					//else {
-					//	chunk[i] = slope(ax, ay, z);
-					//}
+					else {
+						chunk[i] = slope(ax, ay, z);
+					}
 				}
 				else {
 					chunk[i] = 0;

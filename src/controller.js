@@ -1,4 +1,4 @@
-let runspeed  = 4;
+let runspeed  = 8;
 let jumpspeed = 7.915;
 
 export default class Controller
@@ -42,7 +42,10 @@ export default class Controller
 			body.moveLwd(rundelta);
 		}
 		if(input.keymap.shift) {
-			body.moveDown(delta);
+			body.moveDown(delta * runspeed);
+		}
+		if(input.keymap.space) {
+			body.moveUp(delta * runspeed);
 		}
 	}
 }

@@ -1,5 +1,6 @@
-import vec3 from "./math/vec3.js";
-import {radians} from "./math/math.js";
+import vec3 from "./vec3.js";
+import {radians, clamp} from "./math.js";
+import * as glsl from "./glsl.js";
 
 const verts = [
 	-1,+1,-1, +1,+1,-1, -1,+1,+1,  -1,+1,+1, +1,+1,-1, +1,+1,+1, // back
@@ -23,32 +24,11 @@ const vert = `
 `;
 
 const frag = `
-	uniform vec3 dayZenithCol, dayHorizonCol,
-	             dawnZenithCol, dawnHorizonCol,
-	             nightZenithCol, nightHorizonCol,
-	             sunPos, sunCol;
-	
+	uniform vec3 sunPos, sunCol;
+	uniform sampler2D colormap;
 	varying vec3 vPos;
 	
-	vec3 getSkyFrag(
-		vec3 norm, vec3 sunPos,
-		vec3 dayZenithCol, vec3 dayHorizonCol,
-		vec3 dawnZenithCol, vec3 dawnHorizonCol,
-		vec3 nightZenithCol, vec3 nightHorizonCol
-	) {
-		float dayFac   = clamp(+sunPos.z, 0.0, 1.0);
-		float dawnFac  = clamp(1.0 - abs(sunPos.z), 0.0, 1.0);
-		float nightFac = clamp(-sunPos.z, 0.0, 1.0);
-		
-		float grad = 1.0 - norm.z;
-		grad *= dot(norm, sunPos) * 0.5 + 0.5;
-		
-		vec3 dayCol   = mix(dayZenithCol, dayHorizonCol, grad);
-		vec3 dawnCol  = mix(dawnZenithCol, dawnHorizonCol, grad);
-		vec3 nightCol = mix(nightZenithCol, nightHorizonCol, grad);
-		
-		return dayCol * dayFac + dawnCol * dawnFac + nightCol * nightFac;
-	}
+	${glsl.getSkyFrag}
 	
 	vec3 getSunFrag(vec3 norm, vec3 sunPos, vec3 sunCol)
 	{
@@ -61,32 +41,35 @@ const frag = `
 	{
 		vec3 norm = normalize(vPos);
 		vec3 sunFrag = getSunFrag(norm, sunPos, sunCol);
+		vec3 skyFrag = getSkyFrag(colormap, norm, sunPos);
 		
-		vec3 skyFrag = getSkyFrag(
-			norm, sunPos, dayZenithCol, dayHorizonCol, dawnZenithCol, dawnHorizonCol, nightZenithCol, nightHorizonCol
-		);
-		
+		gl_FragColor.a = 1.0;
 		gl_FragColor.rgb = skyFrag + sunFrag;
 	}
 `;
 
 export default class Sky
 {
-	constructor(gl)
-	{
+	constructor(gl,
+		speed = 1 / 256,
+		incline = 30,
+		colormap = "sky.png",
+	) {
 		this.gl = gl;
+		this.colormap = gl.texture("linear", "./gfx/" + colormap);
 		this.buf = gl.buffer({layout: [["pos", 3]], data: verts});
 		this.shader = gl.shader("mediump", vert, frag);
-		this.sun = vec3(0, 1, 0);
+		this.sun = vec3(0, 0, 1);
 		this.phase = 0.0;
-		this.speed = 8 / 256;
-		this.incline = 0;//-30;
+		this.speed = speed;
+		this.incline = incline;
+		this.zenithCol = vec3();
 	}
 	
 	update(delta)
 	{
 		this.phase += delta * this.speed;
-		vec3(0, 1, 0, this.sun);
+		vec3(0, 0, 1, this.sun);
 		vec3.rotateX(this.sun, radians(360) * this.phase, this.sun);
 		vec3.rotateY(this.sun, radians(this.incline), this.sun);
 	}
@@ -100,15 +83,10 @@ export default class Sky
 			proj: cam.proj,
 			view: cam.view,
 			model: cam.model,
-			dayZenithCol: [0.0, 0.125, 0.5],
-			dayHorizonCol: [0.6, 0.8, 1.0],
-			dawnZenithCol: [0.03, 0.06, 0.25],
-			dawnHorizonCol: [1.0, 0.5, 0.25],
-			nightZenithCol: [0.0, 0.0, 0.1],
-			nightHorizonCol: [0.05, 0.0, 0.2],
-			sunCol: [1.0, 0.5, 0.25],
 			sunPos: this.sun,
 			buffer: this.buf,
+			colormap: this.colormap,
+			sunCol: [1.0, 0.5, 0.25],
 		});
 	}
 }

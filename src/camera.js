@@ -1,6 +1,6 @@
 import Movable from "./movable.js";
-import mat4 from "./math/mat4.js";
-import {radians} from "./math/math.js";
+import mat4 from "./mat4.js";
+import {radians} from "./math.js";
 
 export default class Camera extends Movable
 {

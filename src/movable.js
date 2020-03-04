@@ -1,5 +1,5 @@
-import vec3 from "./math/vec3.js";
-import {radians} from "./math/math.js";
+import vec3 from "./vec3.js";
+import {radians} from "./math.js";
 
 const up   = vec3(0, 0,  1);
 const down = vec3(0, 0, -1);

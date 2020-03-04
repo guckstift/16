@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>16 Height Map Editor</title>
+		<style>
+			body {
+				margin: 0;
+			}
+			
+			#maincontainer {
+				display: flex;
+			}
+			
+			canvas {
+				image-rendering: pixelated;
+			}
+			
+			#confpanel {
+				flex: 1;
+				padding: 1em;
+			}
+			
+			input[type=range] {
+				width: 100%;
+				margin: 0;
+			}
+		</style>
+		<script type="module">
+			let canvas = document.querySelector("canvas");
+			let ctx    = canvas.getContext("2d");
+			let map    = new Uint8Array(256 * 256);
+			let imdata = ctx.createImageData(256, 256);
+			let down   = false;
+			let X      = null;
+			let Y      = null;
+			let travel = 0;
+			let mapcan = document.createElement("canvas");
+			let mapctx = mapcan.getContext("2d");
+			let mapim  = ctx.createImageData(256, 256);
+				window.mapcan=mapcan;
+			
+			mapcan.width  = 256;
+			mapcan.height = 256;
+			
+			requestAnimationFrame(function frame()
+			{
+				requestAnimationFrame(frame);
+				
+				for(let y=0, i=0; y<256; y++) {
+					for(let x=0; x<256; x++, i++) {
+						let v = map[i] * 255 / parseInt(maxheight.value);
+						let w = map[i];
+						imdata.data[i * 4 + 0] = clamp(0, 85, v) * 255 / 85;
+						v -= 85;
+						imdata.data[i * 4 + 1] = clamp(0, 85, v) * 255 / 85;
+						v -= 85;
+						imdata.data[i * 4 + 2] = clamp(0, 85, v) * 255 / 85;
+						imdata.data[i * 4 + 3] = 255;
+						
+						imdata.data[i * 4 + 0] -= imdata.data[i * 4 + 1];
+						imdata.data[i * 4 + 1] -= imdata.data[i * 4 + 2];
+						
+						mapim.data[i * 4] = mapim.data[i * 4 + 1] = mapim.data[i * 4 + 2] = w;
+						mapim.data[i * 4 + 3] = 255;
+					}
+				}
+				
+				ctx.putImageData(imdata, 0, 0);
+				mapctx.putImageData(mapim, 0, 0);
+			});
+			
+			canvas.onmousedown = e => {
+				down = true;
+				let x = Math.floor(e.offsetX);
+				let y = Math.floor(e.offsetY);
+				X = x;
+				Y = y;
+				travel = 0;
+			};
+			
+			window.onmouseup = e => {
+				down = false;
+			};
+			
+			canvas.onmousemove = e => {
+				if(down) {
+					let x = Math.floor(e.offsetX);
+					let y = Math.floor(e.offsetY);
+					let dx = x - X;
+					let dy = y - Y;
+					travel += Math.sqrt(dx * dx + dy * dy);
+					console.log(travel);
+					X = x;
+					Y = y;
+					x = Math.max(0, Math.min(255, x));
+					y = Math.max(0, Math.min(255, y));
+					let i = x + y * 256;
+					
+					while(travel >= parseInt(distance.value)) {
+						travel -= parseInt(distance.value);
+						
+						setCircle(x, y, parseInt(radius.value), (v, rx, ry) => {
+							let p = clamp(
+								0, 1,
+								1 -
+								Math.sqrt(rx ** 2 + ry ** 2) +
+								(Math.random() * 2 - 1) * parseFloat(splatter.value)
+							);
+							
+							return v + p * parseInt(amplify.value);
+						});
+					}
+				}
+			};
+			
+			function setCircle(cx, cy, r, fn)
+			{
+				for(let y = cy - r; y <= cy + r; y ++) {
+					for(let x = cx - r; x <= cx + r; x ++) {
+						if(inside(x, y)) {
+							let rx = (x - cx) / r;
+							let ry = (y - cy) / r;
+							//let d  = Math.sqrt(rx * rx + ry * ry) / r;
+							let i  = x + y * 256;
+							let v  = map[i];
+							map[i] = clamp(0, 255, fn(v, rx, ry));
+						}
+					}
+				}
+			}
+			
+			btndownload.onclick = function downloadMap()
+			{
+				let url = mapcan.toDataURL();
+				let a  = document.createElement("a");
+				a.href = url;
+				a.download = "map.png";
+				a.click();
+			}
+			
+			function clamp(a, b, val)
+			{
+				return Math.max(a, Math.min(b, val));
+			}
+			
+			function inside(x, y)
+			{
+				return x >= 0 && y >= 0 && x < 256 && y < 256;
+			}
+		</script>
+		<script>
+			function makeRangeInput(id, name, minval, maxval, def, step = 1)
+			{
+				document.write(`
+					<div>
+						${name}
+						<span id="${id}_label">${def}</span>
+					</div>
+					<input type="range" min="${minval}" max="${maxval}" step="${step}" value="${def}" id="${id}"
+						oninput="${id}_label.innerText=this.value">
+				`);
+			}
+		</script>
+	</head>
+	<body>
+		<div id="maincontainer">
+			<div>
+				<canvas width="256" height="256"></canvas>
+			</div>
+			<div id="confpanel">
+				<script>
+					makeRangeInput("maxheight", "max height", 1, 255, 64);
+					makeRangeInput("distance", "distance", 1, 16, 8);
+					makeRangeInput("radius", "radius", 16, 128, 16);
+					makeRangeInput("amplify", "amplify", -16, 16, 4, 1);
+					makeRangeInput("splatter", "splatter", 0.00, 1.00, 0.00, 0.01);
+				</script>
+				<p>
+				<button type="button" id="btndownload">Download</button>
+				</p>
+			</div>
+	</body>
+</html>
