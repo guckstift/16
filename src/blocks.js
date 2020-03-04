@@ -27,6 +27,13 @@ export default [
 		tiles: [3, 3, 3, 3, 1, 2],
 	},
 	{
+		name: "sand",
+		occluding: true,
+		solid: true,
+		visible: true,
+		tiles: [4, 4, 4, 4, 4, 4],
+	},
+	{
 		name: "object",
 		occluding: false,
 		solid: true,

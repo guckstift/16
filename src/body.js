@@ -1,6 +1,5 @@
 import Movable from "./movable.js";
 import vec3 from "./vec3.js";
-import boxmarch from "./boxmarch.js";
 import boxsweep from "./boxsweep.js";
 
 let sweep;

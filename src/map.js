@@ -384,6 +384,6 @@ export default class Map
 			}
 		}
 		
-		this.batch.draw(camera, sky, colored);
+		this.batch.draw(camera, sky, this.shadow, colored);
 	}
 }

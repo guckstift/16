@@ -25,9 +25,9 @@ export default class Batch
 		}
 	}
 	
-	draw(camera, sky, colored = true)
+	draw(camera, sky, shadow, colored = true)
 	{
 		if(this.data.length)
-		this.model.batch(camera, sky, this.buf, this.data.length / 3, colored);
+		this.model.batch(camera, sky, this.buf, this.data.length / 3, shadow, colored);
 	}
 }

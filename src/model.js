@@ -91,7 +91,7 @@ export default class Model
 		}
 	}
 	
-	batch(camera, sky, buf, cnt, colored = true)
+	batch(camera, sky, buf, cnt, shadow, colored = true)
 	{
 		if(this.buf) {
 			this.gl.enable(this.gl.DEPTH_TEST);

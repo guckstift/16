@@ -6,6 +6,7 @@ import Input from "./input.js";
 import Body from "./body.js";
 import Controller from "./controller.js";
 import World from "./world.js";
+import Debugger from "./debugger.js";
 
 let gravity = 40;
 let runspeed  = 4;
@@ -24,8 +25,12 @@ let axes = new Axes(gl);
 let input = new Input(gl.canvas);
 let body = new Body(world.map, 1.5, [-0.25, -0.25, 0], [0.25, 0.25, 1.75]);
 let ctrl = new Controller(body, input);
+let debug = new Debugger();
+
+debug.start();
 
 window.body = body;
+window.debug = debug;
 
 gl.enableAlphaBlending();
 
